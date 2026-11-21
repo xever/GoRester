@@ -23,9 +23,11 @@ import (
 
 // 请求配置 / 响应结果 / Body 格式的名称表。
 var (
+
+	// todo 标签bodyFormatLabels改名x-www为简写，小心后面格式出错
 	reqTabNames      = []string{"Params", "Body", "Cookie", "Header", "Auth"}
 	respTabNames     = []string{"Body", "Cookie", "Header"}
-	bodyFormatLabels = []string{"none", "form-data", "x-www-form-urlencoded", "json", "xml", "raw"}
+	bodyFormatLabels = []string{"none", "form-data", "form-urlencoded", "json", "xml", "raw"}
 	bodyFormatModes  = []string{"none", "form-data", "x-www-form-urlencoded", "json", "xml", "raw"}
 	methodStrings    = []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
 	authTypeNames    = []string{"none", "basic", "bearer", "api-key"}
@@ -39,9 +41,9 @@ var (
 	// 下拉框选项。
 	prettyOptions     = []string{"Pretty", "Raw"}
 	langOptions       = []string{"JSON", "XML", "文本"}
-	encodingOptions   = []string{"utf-8"}
+	encodingOptions   = []string{"utf-8", "GBK"}
 	apiKeyInOptions   = []string{"header", "query"}
-	formFieldTypes    = []string{"text", "file"}
+	formFieldTypes    = []string{"text", "file", "string", "number"}
 	filterMethods     = []string{"", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
 	filterMethodNames = []string{"全部方法", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
 )
@@ -588,7 +590,8 @@ func (s *projectSession) requestConfig(c ui.C) {
 func (s *projectSession) bodyPanel(c ui.C, body *model.Body) {
 	ui.Column(c).Fill().Children(func() {
 		// 格式子 Tab。
-		ui.Tabs(c, &s.bodyFormat, bodyFormatIndices, bodyFormatLabel).PadX(12)
+		ui.Tabs(c, &s.bodyFormat, bodyFormatIndices, bodyFormatLabel).
+			Line().PadX(1)
 		body.Mode = bodyFormatModes[s.bodyFormat]
 
 		switch body.Mode {
