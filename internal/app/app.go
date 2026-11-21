@@ -155,6 +155,7 @@ type projectSession struct {
 	bodyEditor       *text.Editor      // 编辑器的文本模型
 	bodyEditorTarget *model.Body       // 编辑器当前绑定的请求体
 	bodyCode         codeeditor.Editor // 代码编辑器视图
+	bodyTheme        gfx.Theme         // 最近一次 paint 的主题（供高亮函数取色）
 }
 
 // newProjectSession 为一个项目创建会话。
@@ -202,8 +203,11 @@ func newProjectSession(a *appModel, p *model.Project) *projectSession {
 	s.bodyCode.Document = s.bodyEditor
 	s.bodyCode.Key = s.bodyEditorKey
 	s.bodyCode.Text = s.bodyEditorText
+	// 采用 codeeditor 的标准外观：行号、当前行高亮、括号匹配。
 	s.bodyCode.Snapshot.LineNumbers = true
-	s.bodyCode.Snapshot.Wrap = true
+	s.bodyCode.Snapshot.CurrentLine = true
+	s.bodyCode.Snapshot.MatchBrackets = true
+	s.bodyCode.Snapshot.Highlight = s.codeHighlight
 	return s
 }
 

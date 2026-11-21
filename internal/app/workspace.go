@@ -608,9 +608,9 @@ func (s *projectSession) bodyCodeEditor(c ui.C, body *model.Body) {
 	// 先同步：目标 body 变化时回写旧值并载入新值。
 	s.bindBodyEditor(body)
 
-	// 设置语言与高亮。
+	// 记录主题供高亮函数取色；设置语言。
+	s.bodyTheme = *c.Theme()
 	s.bodyCode.Snapshot.Language = body.Mode
-	s.bodyCode.Snapshot.Highlight = codeHighlight
 
 	ui.Column(c).Fill().Pad(12).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
