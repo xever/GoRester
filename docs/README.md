@@ -3,13 +3,41 @@
 一个使用 **Go + Viva** 编写的类 Postman / Apifox 的 HTTP 接口管理与测试工具。
 原生桌面应用（macOS / Windows / Linux），无 WebView、无浏览器引擎。
 
+## 目录结构
+
+```
+gorester/
+├── src/          # 源码（Go 源文件）
+├── scripts/      # 构建脚本（build / run / test）
+├── dist/         # 成品（编译产物，不入库）
+├── docs/         # 文档（本 README、需求说明）
+├── go.mod        # Go 模块定义
+├── go.sum        # 依赖校验
+└── .gitignore
+```
+
 ## 运行
 
 ```bash
-go run .
+./scripts/run.sh          # 直接以源码运行
+```
+
+或：
+
+```bash
+./scripts/build.sh        # 构建到 dist/gorester
+./dist/gorester           # 运行成品
 ```
 
 需要 Go 1.26+ 与各平台对应工具链（macOS 需要 Xcode 命令行工具）。
+
+## 测试与检查
+
+```bash
+./scripts/test.sh         # gofmt / go vet / go test
+```
+
+测试使用 Viva 的无窗口驱动（`app.Driver`）渲染真实绘制器与焦点规则，不打开窗口。
 
 ## 功能
 
@@ -26,9 +54,9 @@ go run .
 
 所有数据保存在 `~/gorester/` 目录下，一个项目一个文件夹，JSON 格式。
 
-## 目录结构
+## 源码说明
 
-| 文件 | 说明 |
+| 文件（`src/` 下） | 说明 |
 | --- | --- |
 | `main.go` | 入口 + 顶层状态与标签栏 |
 | `app.go` | 会话状态、目录树扁平化、环境工具 |
@@ -43,11 +71,3 @@ go run .
 | `openapi.go` | OpenAPI 3.0 导入导出 |
 | `highlight.go` | JSON/XML 格式化与语法高亮 |
 | `icons.go` | 矢量图标 |
-
-## 测试
-
-```bash
-go test ./...
-```
-
-测试使用无窗口驱动（`app.Driver`）渲染真实绘制器与焦点规则，不打开窗口。
