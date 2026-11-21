@@ -10,4 +10,4 @@ set -euo pipefail
 # 切到项目根目录（脚本位于 scripts/ 下）。
 cd "$(dirname "$0")/.."
 
-go run ./src
+go run ./cmd/gorester

@@ -10,10 +10,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "==> gofmt 检查（应无输出）"
-gofmt -l src
+gofmt -l .
 
 echo "==> go vet"
-go vet ./src
+go vet ./...
 
 echo "==> go test"
-go test ./src -count=1
+go test ./... -count=1

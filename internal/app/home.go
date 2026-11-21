@@ -1,4 +1,4 @@
-package main
+package app
 
 // 本文件是主页：以方格卡片展示所有项目，最左上角是「新建」卡片。
 

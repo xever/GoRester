@@ -1,6 +1,4 @@
-package main
-
-// 本文件负责把所有数据持久化到磁盘。
+// Package storage 负责把所有数据持久化到磁盘。
 //
 // 数据存放规则（见需求）：
 //   - 所有数据保存到用户主目录下的 ~/gorester/ 目录
@@ -14,10 +12,9 @@ package main
 //	  │    └── project.json
 //	  └── 项目B/
 //	       └── project.json
+package storage
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"gorester/internal/model"
 )
 
 // dataFileName 是每个项目文件夹里保存数据的 JSON 文件名。
@@ -107,7 +106,7 @@ func ListProjects() ([]ProjectMeta, error) {
 		if err != nil {
 			continue // 文件夹里没有 project.json 就跳过
 		}
-		var p Project
+		var p model.Project
 		if err := json.Unmarshal(data, &p); err != nil {
 			continue // 解析失败的脏数据直接跳过
 		}
@@ -126,7 +125,7 @@ func ListProjects() ([]ProjectMeta, error) {
 }
 
 // LoadProject 根据项目名加载完整项目数据。
-func LoadProject(name string) (*Project, error) {
+func LoadProject(name string) (*model.Project, error) {
 	pf, err := projectFile(name)
 	if err != nil {
 		return nil, err
@@ -135,19 +134,19 @@ func LoadProject(name string) (*Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("读取项目失败 %s: %w", name, err)
 	}
-	var p Project
+	var p model.Project
 	if err := json.Unmarshal(data, &p); err != nil {
 		return nil, fmt.Errorf("解析项目 JSON 失败 %s: %w", name, err)
 	}
 	// 兼容旧数据：若没有任何环境，补一个默认环境。
 	if len(p.Environments) == 0 {
-		p.Environments = NewProject(p.Name, p.Description).Environments
+		p.Environments = model.NewProject(p.Name, p.Description).Environments
 	}
 	return &p, nil
 }
 
 // SaveProject 把项目数据写回磁盘（含更新时间戳）。
-func SaveProject(p *Project) error {
+func SaveProject(p *model.Project) error {
 	if p == nil {
 		return errors.New("项目为空，无法保存")
 	}
@@ -183,19 +182,4 @@ func DeleteProject(name string) error {
 		return fmt.Errorf("删除项目失败: %w", err)
 	}
 	return nil
-}
-
-// ---------------------------------------------------------------------------
-// ID 生成
-// ---------------------------------------------------------------------------
-
-// newID 生成一个全局唯一的 ID，用于接口、用例、文件夹等节点。
-// 使用加密安全随机数生成 8 字节，转成 16 位十六进制字符串。
-func newID() string {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		// 极端情况下随机源失败，退回时间戳，保证不返回空 ID。
-		return fmt.Sprintf("id%d", time.Now().UnixNano())
-	}
-	return hex.EncodeToString(b[:])
 }

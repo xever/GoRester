@@ -1,16 +1,17 @@
-package main
-
-// 本文件实现 OpenAPI 3.0 格式的导入 / 导出。
+// Package openapi 实现 OpenAPI 3.0 格式的导入 / 导出。
 //
 // 需求：接口支持按项目导入导出 OpenAPI 3.0 格式。
 // 这里定义了一套最小但完整的 OpenAPI 3.0 数据结构，
 // 并提供了「项目 -> OpenAPI 文档」和「OpenAPI 文档 -> 项目」两个方向的转换。
+package openapi
 
 import (
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
+
+	"gorester/internal/model"
 )
 
 // ---------------------------------------------------------------------------
@@ -87,8 +88,8 @@ type Schema struct {
 // 解析与序列化
 // ---------------------------------------------------------------------------
 
-// ParseOpenAPI 把 JSON 字节解析为 OpenAPI 文档。
-func ParseOpenAPI(data []byte) (*OpenAPI, error) {
+// Parse 把 JSON 字节解析为 OpenAPI 文档。
+func Parse(data []byte) (*OpenAPI, error) {
 	var doc OpenAPI
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("解析 OpenAPI 文档失败: %w", err)
@@ -108,8 +109,8 @@ func (d *OpenAPI) Marshal() ([]byte, error) {
 // 导出：项目 -> OpenAPI 文档
 // ---------------------------------------------------------------------------
 
-// ExportOpenAPI 把项目里的所有接口导出为 OpenAPI 3.0 文档。
-func ExportOpenAPI(p *Project) *OpenAPI {
+// Export 把项目里的所有接口导出为 OpenAPI 3.0 文档。
+func Export(p *model.Project) *OpenAPI {
 	doc := &OpenAPI{
 		OpenAPI: "3.0.0",
 		Info: OpenAPIInfo{
@@ -121,8 +122,8 @@ func ExportOpenAPI(p *Project) *OpenAPI {
 	}
 
 	// 递归遍历所有文件夹，把接口收集起来。
-	var collect func(folders []*Folder)
-	collect = func(folders []*Folder) {
+	var collect func(folders []*model.Folder)
+	collect = func(folders []*model.Folder) {
 		for _, f := range folders {
 			for _, iface := range f.Interfaces {
 				doc.addInterface(iface)
@@ -136,7 +137,7 @@ func ExportOpenAPI(p *Project) *OpenAPI {
 }
 
 // addInterface 把单个接口写入文档的 paths。
-func (d *OpenAPI) addInterface(iface *Interface) {
+func (d *OpenAPI) addInterface(iface *model.Interface) {
 	path := iface.Path
 	if path == "" {
 		path = "/"
@@ -152,10 +153,9 @@ func (d *OpenAPI) addInterface(iface *Interface) {
 }
 
 // interfaceToOperation 把接口定义转成 OpenAPI Operation。
-func interfaceToOperation(iface *Interface) *Operation {
+func interfaceToOperation(iface *model.Interface) *Operation {
 	op := &Operation{
-		Summary:     iface.Name,
-		Description: "",
+		Summary: iface.Name,
 	}
 
 	// 查询参数。
@@ -181,7 +181,7 @@ func interfaceToOperation(iface *Interface) *Operation {
 
 // bodyToContent 把 Body 转成 OpenAPI 的 content 定义。
 // 返回 (MediaType, mime)；mime 为空表示没有请求体。
-func bodyToContent(body Body) (MediaType, string) {
+func bodyToContent(body model.Body) (MediaType, string) {
 	switch body.Mode {
 	case "json":
 		ex := parseExampleJSON(body.Raw)
@@ -229,16 +229,16 @@ func setOperation(item *PathItem, method string, op *Operation) {
 // 导入：OpenAPI 文档 -> 项目
 // ---------------------------------------------------------------------------
 
-// ImportOpenAPI 把 OpenAPI 文档里的所有接口导入项目，
+// Import 把 OpenAPI 文档里的所有接口导入项目，
 // 统一放进一个名为 folderName 的文件夹中。
-func ImportOpenAPI(p *Project, doc *OpenAPI, folderName string) {
+func Import(p *model.Project, doc *OpenAPI, folderName string) {
 	if folderName == "" {
 		folderName = doc.Info.Title
 		if folderName == "" {
 			folderName = "导入的接口"
 		}
 	}
-	folder := &Folder{ID: newID(), Name: folderName}
+	folder := &model.Folder{ID: model.NewID(), Name: folderName}
 
 	// paths 是 map，遍历顺序不稳定，先排序保证导入结果可复现。
 	paths := make([]string, 0, len(doc.Paths))
@@ -283,9 +283,9 @@ func operationsOf(item PathItem) []opEntry {
 }
 
 // operationToInterface 把 OpenAPI Operation 转成接口定义。
-func operationToInterface(method, path string, op *Operation) *Interface {
-	iface := &Interface{
-		ID:     newID(),
+func operationToInterface(method, path string, op *Operation) *model.Interface {
+	iface := &model.Interface{
+		ID:     model.NewID(),
 		Name:   op.Summary,
 		Method: method,
 		Path:   path,
@@ -298,15 +298,15 @@ func operationToInterface(method, path string, op *Operation) *Interface {
 	for _, param := range op.Parameters {
 		switch param.In {
 		case "query":
-			iface.Params = append(iface.Params, KeyValue{
+			iface.Params = append(iface.Params, model.KeyValue{
 				Key: param.Name, Value: exampleString(param.Schema), Desc: param.Description, Required: param.Required, Enabled: true,
 			})
 		case "header":
-			iface.Headers = append(iface.Headers, KeyValue{
+			iface.Headers = append(iface.Headers, model.KeyValue{
 				Key: param.Name, Value: exampleString(param.Schema), Desc: param.Description, Enabled: true,
 			})
 		case "cookie":
-			iface.Cookies = append(iface.Cookies, KeyValue{
+			iface.Cookies = append(iface.Cookies, model.KeyValue{
 				Key: param.Name, Value: exampleString(param.Schema), Desc: param.Description, Enabled: true,
 			})
 		}
@@ -321,7 +321,7 @@ func operationToInterface(method, path string, op *Operation) *Interface {
 }
 
 // applyContent 根据请求体的 content 设置接口的 Body。
-func applyContent(iface *Interface, content map[string]MediaType) {
+func applyContent(iface *model.Interface, content map[string]MediaType) {
 	// 优先处理 json，其次 xml / form。
 	if mt, ok := content["application/json"]; ok {
 		iface.Body.Mode = "json"
@@ -352,11 +352,11 @@ func applyContent(iface *Interface, content map[string]MediaType) {
 }
 
 // schemaToKeyValues 把 object 类型的 schema 转成键值对列表。
-func schemaToKeyValues(s *Schema) []KeyValue {
+func schemaToKeyValues(s *Schema) []model.KeyValue {
 	if s == nil || s.Type != "object" || len(s.Properties) == 0 {
 		return nil
 	}
-	var out []KeyValue
+	var out []model.KeyValue
 	required := map[string]bool{}
 	for _, r := range s.Required {
 		required[r] = true
@@ -369,7 +369,7 @@ func schemaToKeyValues(s *Schema) []KeyValue {
 	sort.Strings(keys)
 	for _, k := range keys {
 		ps := s.Properties[k]
-		out = append(out, KeyValue{
+		out = append(out, model.KeyValue{
 			Key: k, Value: exampleString(ps), Type: ps.Type, Desc: ps.Description, Required: required[k], Enabled: true,
 		})
 	}
@@ -475,16 +475,4 @@ func generateSample(s *Schema) interface{} {
 		}
 		return ""
 	}
-}
-
-// ---------------------------------------------------------------------------
-// 小工具
-// ---------------------------------------------------------------------------
-
-// TypeOrDefault 返回键值对的类型，空则返回 "string"（表单默认类型）。
-func (kv KeyValue) TypeOrDefault() string {
-	if kv.Type == "" {
-		return "string"
-	}
-	return kv.Type
 }

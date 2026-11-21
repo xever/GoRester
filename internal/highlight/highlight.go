@@ -1,10 +1,9 @@
-package main
-
-// 本文件负责响应体的格式化与语法高亮。
+// Package highlight 负责响应体的格式化与语法高亮。
 //
 // 需求：JSON / XML 响应展示时带行号、格式化与语法高亮；内容过长时不格式化、
 // 不高亮（避免大文本拖慢界面）。这里把响应体拆成「一行一个或多个着色片段」，
 // 供响应区用 ui.List 渲染。
+package highlight
 
 import (
 	"bytes"
@@ -17,49 +16,49 @@ import (
 // maxHighlightBytes 超过这个字节数就不再格式化 / 高亮，直接原文展示。
 const maxHighlightBytes = 256 * 1024 // 256 KB
 
-// respSeg 是响应体里一段带颜色的文本。
-type respSeg struct {
-	text  string
-	color gfx.Color
+// Seg 是响应体里一段带颜色的文本。
+type Seg struct {
+	Text  string
+	Color gfx.Color
 }
 
-// respLine 是响应区的一行，由若干着色片段组成。
-type respLine struct {
-	segs []respSeg
+// Line 是响应区的一行，由若干着色片段组成。
+type Line struct {
+	Segs []Seg
 }
 
-// buildResponseLines 根据响应体和内容类型，生成带行号/高亮的行列表。
+// BuildResponseLines 根据响应体和内容类型，生成带行号/高亮的行列表。
 // 返回 (lines, highlighted)。highlighted 表示是否做了语法高亮。
-func buildResponseLines(body []byte, contentType string, theme gfx.Theme) ([]respLine, bool) {
+func BuildResponseLines(body []byte, contentType string, theme gfx.Theme) ([]Line, bool) {
 	text := string(body)
 
 	// 内容过长：不格式化、不高亮，直接按行拆分。
 	if len(body) > maxHighlightBytes {
-		return plainLines(text), false
+		return PlainLines(text), false
 	}
 
 	if strings.Contains(contentType, "json") {
-		if pretty, ok := prettyJSON(text); ok {
+		if pretty, ok := PrettyJSON(text); ok {
 			return highlightJSON(pretty, theme), true
 		}
-		return plainLines(text), false
+		return PlainLines(text), false
 	}
 	if strings.Contains(contentType, "xml") {
-		pretty := prettyXML(text)
+		pretty := PrettyXML(text)
 		return highlightXML(pretty, theme), true
 	}
-	return plainLines(text), false
+	return PlainLines(text), false
 }
 
-// plainLines 把文本按行拆分，每行一个普通颜色片段。
-func plainLines(text string) []respLine {
+// PlainLines 把文本按行拆分，每行一个普通颜色片段。
+func PlainLines(text string) []Line {
 	if text == "" {
 		return nil
 	}
 	raw := strings.Split(text, "\n")
-	lines := make([]respLine, 0, len(raw))
+	lines := make([]Line, 0, len(raw))
 	for _, l := range raw {
-		lines = append(lines, respLine{segs: []respSeg{{text: l}}})
+		lines = append(lines, Line{Segs: []Seg{{Text: l}}})
 	}
 	return lines
 }
@@ -68,8 +67,8 @@ func plainLines(text string) []respLine {
 // JSON 格式化
 // ---------------------------------------------------------------------------
 
-// prettyJSON 用两空格缩进格式化 JSON 文本，返回 (结果, 是否成功)。
-func prettyJSON(s string) (string, bool) {
+// PrettyJSON 用两空格缩进格式化 JSON 文本，返回 (结果, 是否成功)。
+func PrettyJSON(s string) (string, bool) {
 	var buf bytes.Buffer
 	if err := json.Indent(&buf, []byte(s), "", "  "); err != nil {
 		return s, false
@@ -82,28 +81,28 @@ func prettyJSON(s string) (string, bool) {
 // ---------------------------------------------------------------------------
 
 // highlightJSON 把（已格式化的）JSON 文本拆成带颜色的行。
-func highlightJSON(s string, theme gfx.Theme) []respLine {
+func highlightJSON(s string, theme gfx.Theme) []Line {
 	colors := jsonColors{theme: theme}
 	segs := colors.tokenize(s)
 
 	// 把连续片段按换行分组。
-	var lines []respLine
-	var cur respLine
+	var lines []Line
+	var cur Line
 	flush := func() {
-		if len(cur.segs) > 0 {
+		if len(cur.Segs) > 0 {
 			lines = append(lines, cur)
-			cur = respLine{}
+			cur = Line{}
 		}
 	}
 	for _, seg := range segs {
 		// 片段里可能包含换行，逐段处理。
-		parts := strings.Split(seg.text, "\n")
+		parts := strings.Split(seg.Text, "\n")
 		for i, p := range parts {
 			if i > 0 {
 				flush() // 遇到换行，结束当前行
 			}
 			if p != "" {
-				cur.segs = append(cur.segs, respSeg{text: p, color: seg.color})
+				cur.Segs = append(cur.Segs, Seg{Text: p, Color: seg.Color})
 			}
 		}
 	}
@@ -117,14 +116,14 @@ type jsonColors struct {
 }
 
 // tokenize 把 JSON 文本切成着色片段（整体一个平坦列表）。
-func (jc jsonColors) tokenize(s string) []respSeg {
+func (jc jsonColors) tokenize(s string) []Seg {
 	key := jc.theme.Accent
 	str := jc.theme.Success
 	num := jc.theme.Primary
 	keyword := gfx.RGB(168, 85, 247) // 紫
 	punct := jc.theme.MutedForeground
 
-	var segs []respSeg
+	var segs []Seg
 	i, n := 0, len(s)
 	for i < n {
 		ch := s[i]
@@ -150,14 +149,14 @@ func (jc jsonColors) tokenize(s string) []respSeg {
 				k++
 			}
 			if k < n && s[k] == ':' {
-				segs = append(segs, respSeg{text: text, color: key})
+				segs = append(segs, Seg{Text: text, Color: key})
 			} else {
-				segs = append(segs, respSeg{text: text, color: str})
+				segs = append(segs, Seg{Text: text, Color: str})
 			}
 			i = end
 
 		case ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ':' || ch == ',':
-			segs = append(segs, respSeg{text: s[i : i+1], color: punct})
+			segs = append(segs, Seg{Text: s[i : i+1], Color: punct})
 			i++
 
 		case ch >= '0' && ch <= '9' || ch == '-' || ch == '+':
@@ -170,7 +169,7 @@ func (jc jsonColors) tokenize(s string) []respSeg {
 					break
 				}
 			}
-			segs = append(segs, respSeg{text: s[i:j], color: num})
+			segs = append(segs, Seg{Text: s[i:j], Color: num})
 			i = j
 
 		case isAlpha(ch):
@@ -178,7 +177,7 @@ func (jc jsonColors) tokenize(s string) []respSeg {
 			for j < n && isAlpha(s[j]) {
 				j++
 			}
-			segs = append(segs, respSeg{text: s[i:j], color: keyword})
+			segs = append(segs, Seg{Text: s[i:j], Color: keyword})
 			i = j
 
 		default:
@@ -192,7 +191,7 @@ func (jc jsonColors) tokenize(s string) []respSeg {
 				}
 				j++
 			}
-			segs = append(segs, respSeg{text: s[i:j], color: jc.theme.Foreground})
+			segs = append(segs, Seg{Text: s[i:j], Color: jc.theme.Foreground})
 			i = j
 		}
 	}
@@ -207,11 +206,10 @@ func isAlpha(c byte) bool {
 // XML 格式化与高亮（极简实现）
 // ---------------------------------------------------------------------------
 
-// prettyXML 做一个极简的 XML 缩进：每个标签另起一行并按层级缩进。
-func prettyXML(s string) string {
+// PrettyXML 做一个极简的 XML 缩进：每个标签另起一行并按层级缩进。
+func PrettyXML(s string) string {
 	var b strings.Builder
 	indent := 0
-	inTag := false
 	inContent := false
 	contentStart := 0
 
@@ -225,9 +223,6 @@ func prettyXML(s string) string {
 				writeIndent(&b, indent)
 			}
 			inContent = false
-			if inTag {
-				// 标签内再遇 <，异常，直接输出。
-			}
 			if i+1 < len(s) && s[i+1] == '/' {
 				// 闭合标签。
 				indent--
@@ -238,16 +233,13 @@ func prettyXML(s string) string {
 			} else {
 				writeIndent(&b, indent)
 			}
-			inTag = true
 			b.WriteByte('<')
 		case '>':
-			inTag = false
+			inContent = false
 			b.WriteByte('>')
 			b.WriteByte('\n')
 			// 自闭合标签不缩进层级；普通开标签缩进 +1。
 			if i > 0 && s[i-1] != '/' {
-				// 判断是否闭合标签。
-				// 用最近一个 '<' 判断。
 				line := lastTag(s, i)
 				if !strings.HasPrefix(line, "</") && !strings.HasPrefix(line, "<?") && !strings.HasPrefix(line, "<!--") {
 					indent++
@@ -278,18 +270,18 @@ func writeIndent(b *strings.Builder, n int) {
 }
 
 // highlightXML 给 XML 做简单高亮：标签名/属性名用强调色，字符串属性值用绿色。
-func highlightXML(s string, theme gfx.Theme) []respLine {
+func highlightXML(s string, theme gfx.Theme) []Line {
 	raw := strings.Split(s, "\n")
-	lines := make([]respLine, 0, len(raw))
+	lines := make([]Line, 0, len(raw))
 	for _, l := range raw {
-		lines = append(lines, respLine{segs: highlightXMLSegs(l, theme)})
+		lines = append(lines, Line{Segs: highlightXMLSegs(l, theme)})
 	}
 	return lines
 }
 
-func highlightXMLSegs(line string, theme gfx.Theme) []respSeg {
+func highlightXMLSegs(line string, theme gfx.Theme) []Seg {
 	// 极简：把 <...> 内的属性值字符串涂绿，其余标签部分涂强调色。
-	var segs []respSeg
+	var segs []Seg
 	i, n := 0, len(line)
 	for i < n {
 		if line[i] == '"' {
@@ -299,7 +291,7 @@ func highlightXMLSegs(line string, theme gfx.Theme) []respSeg {
 			}
 			if j < n {
 				j++
-				segs = append(segs, respSeg{text: line[i:j], color: theme.Success})
+				segs = append(segs, Seg{Text: line[i:j], Color: theme.Success})
 				i = j
 				continue
 			}
@@ -308,7 +300,7 @@ func highlightXMLSegs(line string, theme gfx.Theme) []respSeg {
 		for j < n && line[j] != '"' {
 			j++
 		}
-		segs = append(segs, respSeg{text: line[i:j], color: theme.Foreground})
+		segs = append(segs, Seg{Text: line[i:j], Color: theme.Foreground})
 		i = j
 	}
 	return segs

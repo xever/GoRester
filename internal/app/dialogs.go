@@ -1,4 +1,4 @@
-package main
+package app
 
 // 本文件包含所有弹窗（Modal）与抽屉（Drawer）：新建文件夹、保存新接口
 // （选择名字与文件夹）、保存为用例、环境管理抽屉。
@@ -11,6 +11,8 @@ import (
 
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
+
+	"gorester/internal/model"
 )
 
 // dialogs 渲染当前项目会话的所有弹窗与抽屉。
@@ -38,10 +40,10 @@ func (s *projectSession) newFolderModal(c ui.C) {
 				if strings.TrimSpace(s.newFolderName) == "" {
 					return
 				}
-				f := &Folder{ID: newID(), Name: s.newFolderName}
+				f := &model.Folder{ID: model.NewID(), Name: s.newFolderName}
 				if s.newFolderParent == "" {
 					s.project.Folders = append(s.project.Folders, f)
-				} else if parent := s.project.findFolder(s.newFolderParent); parent != nil {
+				} else if parent := s.project.FindFolder(s.newFolderParent); parent != nil {
 					parent.Folders = append(parent.Folders, f)
 					s.expanded[s.newFolderParent] = true
 				}
@@ -86,13 +88,13 @@ func (s *projectSession) commitSaveDialog() {
 	if strings.TrimSpace(s.saveName) == "" {
 		return
 	}
-	target := s.project.targetByPath(s.saveParent)
+	target := s.project.TargetByPath(s.saveParent)
 	tab.iface.Name = s.saveName
-	if target.folder == nil {
+	if target.Folder == nil {
 		s.project.Interfaces = append(s.project.Interfaces, tab.iface)
 	} else {
-		target.folder.Interfaces = append(target.folder.Interfaces, tab.iface)
-		s.expanded[target.folder.ID] = true
+		target.Folder.Interfaces = append(target.Folder.Interfaces, tab.iface)
+		s.expanded[target.Folder.ID] = true
 	}
 	tab.isNew = false
 	tab.name = s.saveName
@@ -104,10 +106,10 @@ func (s *projectSession) commitSaveDialog() {
 
 // folderPicker 渲染一个「目标文件夹」下拉框。
 func (s *projectSession) folderPicker(c ui.C, selected *string) {
-	targets := s.project.folderTargets()
+	targets := s.project.FolderTargets()
 	paths := make([]string, len(targets))
 	for i, t := range targets {
-		paths[i] = t.path
+		paths[i] = t.Path
 	}
 	// 保证当前值在选项内，否则 Select 会显示为空。
 	found := false
@@ -153,8 +155,8 @@ func (s *projectSession) commitSaveCase() {
 	if strings.TrimSpace(s.saveCaseName) == "" {
 		return
 	}
-	cs := &Case{
-		ID:      newID(),
+	cs := &model.Case{
+		ID:      model.NewID(),
 		Name:    s.saveCaseName,
 		Method:  iface.Method,
 		Path:    iface.Path,
@@ -173,11 +175,11 @@ func (s *projectSession) commitSaveCase() {
 }
 
 // cloneKVs 深拷贝一个键值对切片，避免用例与接口共享底层数组。
-func cloneKVs(src []KeyValue) []KeyValue {
+func cloneKVs(src []model.KeyValue) []model.KeyValue {
 	if src == nil {
 		return nil
 	}
-	out := make([]KeyValue, len(src))
+	out := make([]model.KeyValue, len(src))
 	copy(out, src)
 	return out
 }
@@ -234,7 +236,7 @@ func (s *projectSession) envDrawer(c ui.C) {
 							s.syncEnvSnapshots()
 						}
 						if ui.Button(c, "添加环境").Icon(iconPlus).Ghost().Small().Clicked() {
-							s.project.Environments = append(s.project.Environments, &Environment{Name: "新环境", Vars: map[string]string{}, Headers: map[string]string{}, TimeoutMs: DefaultTimeoutMs})
+							s.project.Environments = append(s.project.Environments, &model.Environment{Name: "新环境", Vars: map[string]string{}, Headers: map[string]string{}, TimeoutMs: model.DefaultTimeoutMs})
 							s.envIndex = len(s.project.Environments) - 1
 							s.syncEnvSnapshots()
 						}
@@ -284,22 +286,22 @@ func (s *projectSession) envDrawer(c ui.C) {
 // map / 切片互转
 // ---------------------------------------------------------------------------
 
-// mapToKV 把 map[string]string 转成有序的 []KeyValue（键名排序，便于编辑）。
-func mapToKV(m map[string]string) []KeyValue {
+// mapToKV 把 map[string]string 转成有序的 []model.KeyValue（键名排序，便于编辑）。
+func mapToKV(m map[string]string) []model.KeyValue {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	out := make([]KeyValue, 0, len(keys))
+	out := make([]model.KeyValue, 0, len(keys))
 	for _, k := range keys {
-		out = append(out, KeyValue{Key: k, Value: m[k], Enabled: true})
+		out = append(out, model.KeyValue{Key: k, Value: m[k], Enabled: true})
 	}
 	return out
 }
 
-// kvToMap 把 []KeyValue 转回 map[string]string（忽略空键）。
-func kvToMap(kvs []KeyValue) map[string]string {
+// kvToMap 把 []model.KeyValue 转回 map[string]string（忽略空键）。
+func kvToMap(kvs []model.KeyValue) map[string]string {
 	m := map[string]string{}
 	for _, kv := range kvs {
 		if kv.Key != "" {

@@ -1,4 +1,4 @@
-package main
+package app
 
 // 本文件定义应用的顶层状态（appModel）、每个已打开项目的运行时状态
 // （projectSession）、工作区标签页（workTab）以及树形结构的扁平化逻辑。
@@ -10,6 +10,10 @@ import (
 
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
+
+	"gorester/internal/highlight"
+	"gorester/internal/httpclient"
+	"gorester/internal/model"
 )
 
 // ---------------------------------------------------------------------------
@@ -36,14 +40,14 @@ const (
 
 // treeEntry 是左侧目录树的一行（扁平化后的结果）。
 type treeEntry struct {
-	kind   int        // nodeFolder / nodeInterface / nodeCase
-	depth  int        // 缩进层级
-	id     string     // 节点 ID（接口 / 用例 / 文件夹）
-	name   string     // 显示名
-	method string     // 接口 / 用例的 HTTP 方法
-	folder *Folder    // nodeFolder 指向的文件夹
-	iface  *Interface // nodeInterface 指向的接口
-	case_  *Case      // nodeCase 指向的用例
+	kind   int              // nodeFolder / nodeInterface / nodeCase
+	depth  int              // 缩进层级
+	id     string           // 节点 ID（接口 / 用例 / 文件夹）
+	name   string           // 显示名
+	method string           // 接口 / 用例的 HTTP 方法
+	folder *model.Folder    // nodeFolder 指向的文件夹
+	iface  *model.Interface // nodeInterface 指向的接口
+	case_  *model.Case      // nodeCase 指向的用例
 }
 
 // ---------------------------------------------------------------------------
@@ -57,9 +61,9 @@ type workTab struct {
 	name  string // 标签页标题
 	isNew bool   // 是否为「尚未保存的新接口」
 
-	parentID string     // 用例所属接口的 ID（仅 tabCase 用）
-	iface    *Interface // tabInterface 的编辑对象
-	case_    *Case      // tabCase 的编辑对象
+	parentID string           // 用例所属接口的 ID（仅 tabCase 用）
+	iface    *model.Interface // tabInterface 的编辑对象
+	case_    *model.Case      // tabCase 的编辑对象
 }
 
 // ---------------------------------------------------------------------------
@@ -67,11 +71,11 @@ type workTab struct {
 // ---------------------------------------------------------------------------
 
 // projectSession 保存一个已打开项目的运行时状态。
-// 每个项目复用一个 HTTP Client（见 httpclient.go）。
+// 每个项目复用一个 HTTP Client（见 httpclient 包）。
 type projectSession struct {
 	app     *appModel
-	project *Project
-	client  *Client
+	project *model.Project
+	client  *httpclient.Client
 
 	// —— 左侧目录树 ——
 	tree           ui.TreeState
@@ -102,15 +106,15 @@ type projectSession struct {
 	envLabelFn  func(int) string // 环境名称标签（构造时绑定）
 
 	// —— 请求发送（异步）——
-	send     *ui.EffectState[*Result, int]
+	send     *ui.EffectState[*httpclient.Result, int]
 	sendKey  int
-	sendOpts RequestOptions
+	sendOpts httpclient.RequestOptions
 	sendMu   sync.Mutex
 	sending  bool
-	response *Result // 最近一次响应（供展示）
+	response *httpclient.Result // 最近一次响应（供展示）
 
 	// 响应体渲染缓存（语法高亮后的行）。
-	respLines       []respLine
+	respLines       []highlight.Line
 	respHighlighted bool
 	respList        ui.ListState // 响应体列表的滚动/焦点状态
 	respFormat      int          // 0 Pretty 1 Raw
@@ -129,16 +133,16 @@ type projectSession struct {
 	draftParent     string // 新建接口草稿的默认目标文件夹 ID
 	saveCaseOpen    bool
 	saveCaseName    string
-	saveCaseTarget  *Interface // 要另存为用例的接口
+	saveCaseTarget  *model.Interface // 要另存为用例的接口
 
 	// —— 环境抽屉 ——
 	envDrawerOpen     bool
 	envEditIndex      int // 抽屉里正在编辑的环境下标
 	envTimeoutEdit    string
-	envVarsEdit       []KeyValue
-	envHeadersEdit    []KeyValue
-	globalVarsEdit    []KeyValue
-	globalHeadersEdit []KeyValue
+	envVarsEdit       []model.KeyValue
+	envHeadersEdit    []model.KeyValue
+	globalVarsEdit    []model.KeyValue
+	globalHeadersEdit []model.KeyValue
 
 	// —— 请求体编辑面板 ——
 	bodyFormat int // Body 子 Tab 下标
@@ -147,11 +151,11 @@ type projectSession struct {
 }
 
 // newProjectSession 为一个项目创建会话。
-func newProjectSession(app *appModel, p *Project) *projectSession {
+func newProjectSession(a *appModel, p *model.Project) *projectSession {
 	s := &projectSession{
-		app:      app,
+		app:      a,
 		project:  p,
-		client:   NewClient(0),
+		client:   httpclient.NewClient(0),
 		expanded: map[string]bool{},
 		split:    ui.SplitterState{Pos: 280},
 		vsplit:   ui.SplitterState{Ratio: 0.6},
@@ -164,12 +168,12 @@ func newProjectSession(app *appModel, p *Project) *projectSession {
 
 	// 默认选中当前环境（第一个）。
 	if len(p.Environments) == 0 {
-		p.Environments = NewProject(p.Name, p.Description).Environments
+		p.Environments = model.NewProject(p.Name, p.Description).Environments
 	}
 
 	// 异步发送请求的 Effect：key 是发送计数，每次发送 +1。
 	// run 在页面之外执行，只能读快照，不能碰 ui.C / Box。
-	s.send = ui.NewEffectKeyed(func(ctx context.Context, key int) (*Result, error) {
+	s.send = ui.NewEffectKeyed(func(ctx context.Context, key int) (*httpclient.Result, error) {
 		s.sendMu.Lock()
 		opts := s.sendOpts
 		s.sendMu.Unlock()
@@ -207,7 +211,7 @@ func (s *projectSession) rebuildTree() {
 }
 
 // appendFolders 递归追加文件夹及其内容（filtering 时跳过不含匹配项的文件夹）。
-func (s *projectSession) appendFolders(folders []*Folder, depth int, filtering bool) {
+func (s *projectSession) appendFolders(folders []*model.Folder, depth int, filtering bool) {
 	for _, f := range folders {
 		if filtering && !s.folderMatches(f) {
 			continue
@@ -225,7 +229,7 @@ func (s *projectSession) appendFolders(folders []*Folder, depth int, filtering b
 }
 
 // matchesInterface 判断接口是否命中搜索文本与方法过滤。
-func (s *projectSession) matchesInterface(iface *Interface) bool {
+func (s *projectSession) matchesInterface(iface *model.Interface) bool {
 	if s.sidebarFilter != "" && !strings.EqualFold(iface.Method, s.sidebarFilter) {
 		return false
 	}
@@ -236,7 +240,7 @@ func (s *projectSession) matchesInterface(iface *Interface) bool {
 }
 
 // folderMatches 判断文件夹（或其后代）是否含有匹配的接口。
-func (s *projectSession) folderMatches(f *Folder) bool {
+func (s *projectSession) folderMatches(f *model.Folder) bool {
 	for _, i := range f.Interfaces {
 		if s.matchesInterface(i) {
 			return true
@@ -256,7 +260,7 @@ func (s *projectSession) filterActive() bool {
 }
 
 // appendInterface 追加一个接口；展开时继续追加它的用例。
-func (s *projectSession) appendInterface(iface *Interface, depth int) {
+func (s *projectSession) appendInterface(iface *model.Interface, depth int) {
 	s.flat = append(s.flat, treeEntry{kind: nodeInterface, depth: depth, id: iface.ID, name: iface.Name, method: iface.Method, iface: iface})
 	if s.expanded[iface.ID] {
 		for _, cs := range iface.Cases {
@@ -287,112 +291,11 @@ func (s *projectSession) nodeAt(i int) ui.TreeNode {
 func (s *projectSession) labelAt(i int) string { return s.flat[i].name }
 
 // ---------------------------------------------------------------------------
-// 项目内的查找
-// ---------------------------------------------------------------------------
-
-// allInterfaces 返回项目里所有接口（根目录 + 所有文件夹，递归）。
-func (p *Project) allInterfaces() []*Interface {
-	var out []*Interface
-	out = append(out, p.Interfaces...)
-	var walk func(fs []*Folder)
-	walk = func(fs []*Folder) {
-		for _, f := range fs {
-			out = append(out, f.Interfaces...)
-			walk(f.Folders)
-		}
-	}
-	walk(p.Folders)
-	return out
-}
-
-// findInterface 按 ID 查找接口，找不到返回 nil。
-func (p *Project) findInterface(id string) *Interface {
-	for _, i := range p.Interfaces {
-		if i.ID == id {
-			return i
-		}
-	}
-	for _, i := range p.allInterfaces() {
-		if i.ID == id {
-			return i
-		}
-	}
-	return nil
-}
-
-// findCase 按 ID 查找用例，找不到返回 nil。
-func (p *Project) findCase(id string) *Case {
-	for _, iface := range p.allInterfaces() {
-		for _, c := range iface.Cases {
-			if c.ID == id {
-				return c
-			}
-		}
-	}
-	return nil
-}
-
-// findFolder 按 ID 递归查找文件夹，找不到返回 nil。
-func (p *Project) findFolder(id string) *Folder {
-	var walk func(fs []*Folder) *Folder
-	walk = func(fs []*Folder) *Folder {
-		for _, f := range fs {
-			if f.ID == id {
-				return f
-			}
-			if r := walk(f.Folders); r != nil {
-				return r
-			}
-		}
-		return nil
-	}
-	return walk(p.Folders)
-}
-
-// ---------------------------------------------------------------------------
-// 文件夹选择器
-// ---------------------------------------------------------------------------
-
-// folderTarget 是「保存到哪个文件夹」下拉框里的一项。
-type folderTarget struct {
-	path   string  // 显示路径，如 "A/B"
-	folder *Folder // nil 表示项目根目录
-}
-
-// folderTargets 返回项目根目录 + 所有文件夹（用于下拉选择）。
-func (p *Project) folderTargets() []folderTarget {
-	out := []folderTarget{{path: "项目根目录"}}
-	var walk func(fs []*Folder, prefix string)
-	walk = func(fs []*Folder, prefix string) {
-		for _, f := range fs {
-			p := f.Name
-			if prefix != "" {
-				p = prefix + "/" + f.Name
-			}
-			out = append(out, folderTarget{path: p, folder: f})
-			walk(f.Folders, p)
-		}
-	}
-	walk(p.Folders, "")
-	return out
-}
-
-// targetByPath 根据路径找到对应的 folderTarget（找不到返回根目录）。
-func (p *Project) targetByPath(path string) folderTarget {
-	for _, t := range p.folderTargets() {
-		if t.path == path {
-			return t
-		}
-	}
-	return folderTarget{path: "项目根目录"}
-}
-
-// ---------------------------------------------------------------------------
 // 环境工具
 // ---------------------------------------------------------------------------
 
 // currentEnv 返回当前选中的环境（越界时回退到第一个）。
-func (s *projectSession) currentEnv() *Environment {
+func (s *projectSession) currentEnv() *model.Environment {
 	envs := s.project.Environments
 	if len(envs) == 0 {
 		return nil
@@ -438,8 +341,8 @@ func (s *projectSession) requestVars() map[string]string {
 }
 
 // buildOptions 根据当前编辑的接口/用例 + 环境，构造发送请求所需的选项。
-func (s *projectSession) buildOptions() RequestOptions {
-	opts := RequestOptions{Vars: s.requestVars()}
+func (s *projectSession) buildOptions() httpclient.RequestOptions {
+	opts := httpclient.RequestOptions{Vars: s.requestVars()}
 
 	// 环境 base_url。
 	if env := s.currentEnv(); env != nil {
@@ -479,7 +382,7 @@ func (s *projectSession) buildOptions() RequestOptions {
 
 	// 全局 / 环境 Header 放在接口自己的 Header 之后，接口自己的优先。
 	// 用新切片合并，避免 append 破坏接口原来的 Header 底层数组。
-	mergedHeaders := append([]KeyValue(nil), opts.Headers...)
+	mergedHeaders := append([]model.KeyValue(nil), opts.Headers...)
 	for k, v := range merged {
 		exists := false
 		for _, h := range mergedHeaders {
@@ -489,7 +392,7 @@ func (s *projectSession) buildOptions() RequestOptions {
 			}
 		}
 		if !exists {
-			mergedHeaders = append(mergedHeaders, KeyValue{Key: k, Value: v, Enabled: true})
+			mergedHeaders = append(mergedHeaders, model.KeyValue{Key: k, Value: v, Enabled: true})
 		}
 	}
 	opts.Headers = mergedHeaders
@@ -497,7 +400,7 @@ func (s *projectSession) buildOptions() RequestOptions {
 }
 
 // fillOptsFromInterface 把接口的定义（深拷贝）填入选项，避免后台请求与编辑共享数据。
-func fillOptsFromInterface(opts *RequestOptions, iface *Interface) {
+func fillOptsFromInterface(opts *httpclient.RequestOptions, iface *model.Interface) {
 	opts.Method = iface.Method
 	opts.Path = iface.Path
 	opts.Params = cloneKVs(iface.Params)
@@ -508,7 +411,7 @@ func fillOptsFromInterface(opts *RequestOptions, iface *Interface) {
 }
 
 // cloneBody 深拷贝请求体（Raw 字符串不可变，只拷贝两个键值对切片）。
-func cloneBody(b Body) Body {
+func cloneBody(b model.Body) model.Body {
 	b.FormData = cloneKVs(b.FormData)
 	b.URLEncoded = cloneKVs(b.URLEncoded)
 	return b

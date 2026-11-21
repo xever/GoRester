@@ -1,11 +1,10 @@
-package main
-
-// 本文件负责执行 HTTP 请求。
+// Package httpclient 负责执行 HTTP 请求。
 //
 // 性能要求（见需求）：
 //   - 每个项目复用同一个 http.Client（复用底层连接池，避免重复握手）
 //   - 默认超时 30 秒
 //   - 及时释放返回值内容（读取完响应体后立即关闭）
+package httpclient
 
 import (
 	"bytes"
@@ -19,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"gorester/internal/model"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,23 +32,23 @@ type RequestOptions struct {
 	Method  string            // HTTP 方法
 	BaseURL string            // 环境 base_url（与 Path 拼接成完整 URL）
 	Path    string            // 接口路径
-	Params  []KeyValue        // 查询参数（Query）
-	Headers []KeyValue        // 请求头
-	Cookies []KeyValue        // Cookie
-	Body    Body              // 请求体
-	Auth    Auth              // 认证信息
+	Params  []model.KeyValue  // 查询参数（Query）
+	Headers []model.KeyValue  // 请求头
+	Cookies []model.KeyValue  // Cookie
+	Body    model.Body        // 请求体
+	Auth    model.Auth        // 认证信息
 	Vars    map[string]string // 变量表：环境变量 + 全局变量，用于替换 {{name}}
 }
 
 // Result 是一次请求的完整结果。
 type Result struct {
-	StatusCode int           // 状态码，如 200
-	Status     string        // 状态文本，如 "200 OK"
-	Proto      string        // 协议版本，如 "HTTP/1.1"
-	Headers    []KeyValue    // 响应头
-	Body       []byte        // 响应体原始字节
-	Elapsed    time.Duration // 从发出请求到读完响应的耗时
-	Err        error         // 请求过程中发生的错误（nil 表示成功）
+	StatusCode int              // 状态码，如 200
+	Status     string           // 状态文本，如 "200 OK"
+	Proto      string           // 协议版本，如 "HTTP/1.1"
+	Headers    []model.KeyValue // 响应头
+	Body       []byte           // 响应体原始字节
+	Elapsed    time.Duration    // 从发出请求到读完响应的耗时
+	Err        error            // 请求过程中发生的错误（nil 表示成功）
 }
 
 // BodyString 把响应体字节转成字符串，供界面展示。
@@ -72,7 +73,7 @@ type Client struct {
 // NewClient 创建一个 HTTP 客户端。timeout<=0 时使用默认 30 秒。
 func NewClient(timeout time.Duration) *Client {
 	if timeout <= 0 {
-		timeout = DefaultTimeoutMs * time.Millisecond
+		timeout = model.DefaultTimeoutMs * time.Millisecond
 	}
 	// Transport 里的连接池参数让同一个项目的多次请求复用 TCP 连接。
 	tr := &http.Transport{
@@ -93,7 +94,7 @@ func NewClient(timeout time.Duration) *Client {
 // SetTimeout 更新客户端超时时间（用户在环境里修改默认耗时时调用）。
 func (c *Client) SetTimeout(timeout time.Duration) {
 	if timeout <= 0 {
-		timeout = DefaultTimeoutMs * time.Millisecond
+		timeout = model.DefaultTimeoutMs * time.Millisecond
 	}
 	c.timeout = timeout
 	c.hc.Timeout = timeout
@@ -165,9 +166,6 @@ func (c *Client) buildRequest(opts RequestOptions) (*http.Request, error) {
 	}
 	q := u.Query()
 	for _, p := range opts.Params {
-		if !p.Enabled && p.Key == "" {
-			continue
-		}
 		if p.Key == "" {
 			continue
 		}
@@ -241,7 +239,7 @@ func substituteVars(s string, vars map[string]string) string {
 // ---------------------------------------------------------------------------
 
 // buildBody 根据 Body 的模式构造请求体读取器和对应的 Content-Type。
-func buildBody(body Body, subst func(string) string) (io.Reader, string, error) {
+func buildBody(body model.Body, subst func(string) string) (io.Reader, string, error) {
 	switch body.Mode {
 	case "json":
 		return strings.NewReader(subst(body.Raw)), "application/json", nil
@@ -267,7 +265,7 @@ func buildBody(body Body, subst func(string) string) (io.Reader, string, error) 
 
 // buildFormData 构造 multipart/form-data 请求体。
 // Type 为 "file" 的项，其 Value 会被当成文件路径读取并作为文件上传。
-func buildFormData(items []KeyValue, subst func(string) string) (io.Reader, string, error) {
+func buildFormData(items []model.KeyValue, subst func(string) string) (io.Reader, string, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 
@@ -313,7 +311,7 @@ func buildFormData(items []KeyValue, subst func(string) string) (io.Reader, stri
 // ---------------------------------------------------------------------------
 
 // applyAuth 把认证信息写入请求。
-func applyAuth(req *http.Request, auth Auth, subst func(string) string) error {
+func applyAuth(req *http.Request, auth model.Auth, subst func(string) string) error {
 	switch auth.Type {
 	case "basic":
 		req.SetBasicAuth(subst(auth.Username), subst(auth.Password))
@@ -340,11 +338,11 @@ func applyAuth(req *http.Request, auth Auth, subst func(string) string) error {
 // ---------------------------------------------------------------------------
 
 // headersToKeyValues 把 http.Header 转成统一的 KeyValue 列表，方便表格展示。
-func headersToKeyValues(h http.Header) []KeyValue {
-	out := make([]KeyValue, 0, len(h))
+func headersToKeyValues(h http.Header) []model.KeyValue {
+	out := make([]model.KeyValue, 0, len(h))
 	for k, vs := range h {
 		for _, v := range vs {
-			out = append(out, KeyValue{Key: k, Value: v, Enabled: true})
+			out = append(out, model.KeyValue{Key: k, Value: v, Enabled: true})
 		}
 	}
 	return out

@@ -7,12 +7,20 @@
 
 ```
 gorester/
-├── src/          # 源码（Go 源文件）
-├── scripts/      # 构建脚本（build / run / test）
-├── dist/         # 成品（编译产物，不入库）
-├── docs/         # 文档（本 README、需求说明）
-├── go.mod        # Go 模块定义
-├── go.sum        # 依赖校验
+├── cmd/
+│   └── gorester/          # 程序入口（main）
+├── internal/              # 内部实现，按职责分包
+│   ├── app/               # 应用层：窗口、主页、项目工作区、界面组件
+│   ├── model/             # 数据模型（Project / Interface / Case …）
+│   ├── storage/           # JSON 持久化到 ~/gorester/
+│   ├── httpclient/        # HTTP 客户端与请求执行
+│   ├── openapi/           # OpenAPI 3.0 导入导出
+│   └── highlight/         # JSON/XML 格式化与语法高亮
+├── scripts/               # 构建脚本（build / run / test）
+├── dist/                  # 成品（编译产物，不入库）
+├── docs/                  # 文档（本 README、需求说明）
+├── go.mod                 # Go 模块定义
+├── go.sum                 # 依赖校验
 └── .gitignore
 ```
 
@@ -53,21 +61,3 @@ gorester/
 ## 数据存储
 
 所有数据保存在 `~/gorester/` 目录下，一个项目一个文件夹，JSON 格式。
-
-## 源码说明
-
-| 文件（`src/` 下） | 说明 |
-| --- | --- |
-| `main.go` | 入口 + 顶层状态与标签栏 |
-| `app.go` | 会话状态、目录树扁平化、环境工具 |
-| `home.go` | 主页 |
-| `sidebar.go` | 左侧目录树 |
-| `workspace.go` | 主工作区（请求/响应/状态栏） |
-| `dialogs.go` | 弹窗与抽屉（新建文件夹、保存、用例、环境） |
-| `keyvalue.go` | 键值对表格编辑器 |
-| `model.go` | 数据模型 |
-| `storage.go` | JSON 持久化 |
-| `httpclient.go` | HTTP 客户端与请求执行 |
-| `openapi.go` | OpenAPI 3.0 导入导出 |
-| `highlight.go` | JSON/XML 格式化与语法高亮 |
-| `icons.go` | 矢量图标 |

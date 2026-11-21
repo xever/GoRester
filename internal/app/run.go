@@ -1,11 +1,14 @@
-package main
-
-// main.go 是程序入口，也包含应用顶层状态 appModel 和顶层页面
-// （顶部标签栏 + 主页 / 项目工作区的路由）。
+// Package app 是 GoRester 的应用层：窗口入口、顶层状态、主页、项目工作区
+// 以及所有界面组件。它组合了 model / storage / httpclient / openapi / highlight
+// 这几个底层包，用 Viva 的 ui / gfx 把界面画出来。
+package app
 
 import (
-	"github.com/vivaui/viva/app"
+	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/ui"
+
+	"gorester/internal/model"
+	"gorester/internal/storage"
 )
 
 // ---------------------------------------------------------------------------
@@ -14,9 +17,9 @@ import (
 
 // appModel 是整个应用的顶层状态，持有项目列表和已打开的标签页。
 type appModel struct {
-	projects []ProjectMeta     // 主页展示的项目摘要
-	tabs     []*projectSession // 已打开的项目标签页
-	active   int               // 当前标签页下标，-1 表示主页
+	projects []storage.ProjectMeta // 主页展示的项目摘要
+	tabs     []*projectSession     // 已打开的项目标签页
+	active   int                   // 当前标签页下标，-1 表示主页
 
 	// 主页「新建项目」弹窗。
 	newProjectOpen bool
@@ -35,7 +38,7 @@ func newAppModel() *appModel {
 
 // reloadProjects 重新扫描 ~/gorester/，刷新主页项目列表。
 func (m *appModel) reloadProjects() {
-	metas, err := ListProjects()
+	metas, err := storage.ListProjects()
 	if err != nil {
 		m.toaster.Show("加载项目失败", err.Error(), ui.ToastError)
 		return
@@ -132,7 +135,7 @@ func (m *appModel) openProject(name string) {
 			return
 		}
 	}
-	p, err := LoadProject(name)
+	p, err := storage.LoadProject(name)
 	if err != nil {
 		m.toaster.Show("打开项目失败", err.Error(), ui.ToastError)
 		return
@@ -154,8 +157,8 @@ func (m *appModel) createProject(name, desc string) {
 			return
 		}
 	}
-	p := NewProject(name, desc)
-	if err := SaveProject(p); err != nil {
+	p := model.NewProject(name, desc)
+	if err := storage.SaveProject(p); err != nil {
 		m.toaster.Show("保存失败", err.Error(), ui.ToastError)
 		return
 	}
@@ -170,9 +173,10 @@ func (m *appModel) createProject(name, desc string) {
 // 入口
 // ---------------------------------------------------------------------------
 
-func main() {
+// Run 打开窗口并运行应用，阻塞直到窗口关闭。
+func Run() {
 	m := newAppModel()
-	cfg := app.Config{
+	cfg := vivaapp.Config{
 		Title:     "GoRester",
 		Width:     1280,
 		Height:    820,
@@ -181,7 +185,7 @@ func main() {
 	}
 	// 跟随系统明暗主题（Theme 留空、开启 FollowSystemTheme）。
 	page := ui.NewPage(ui.PageConfig{View: m.page, FollowSystemTheme: true})
-	if err := app.Run(ui.Configure(page, cfg)); err != nil {
+	if err := vivaapp.Run(ui.Configure(page, cfg)); err != nil {
 		panic(err)
 	}
 }

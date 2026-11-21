@@ -1,13 +1,15 @@
-package main
+package app
 
 // 本文件实现可复用的「键值对表格」编辑器，用于请求参数(Params)、
 // 请求头(Header)、Cookie 以及 Body 表单(form-data / x-www-form-urlencoded)。
 //
-// 每一行直接绑定到 []KeyValue 的某个元素上，用户编辑即写回模型；
+// 每一行直接绑定到 []model.KeyValue 的某个元素上，用户编辑即写回模型；
 // 「添加一行」/「删除」就地修改切片。表头与列宽用固定宽度对齐。
 
 import (
 	"github.com/vivaui/viva/ui"
+
+	"gorester/internal/model"
 )
 
 // 列宽常量（保证各行对齐）。
@@ -25,8 +27,8 @@ type kvColumns struct {
 }
 
 // kvEditor 渲染一张可编辑的键值对表。
-// rows 是 *[]KeyValue，直接修改它即可。
-func kvEditor(c ui.C, rows *[]KeyValue, cols kvColumns) {
+// rows 是 *[]model.KeyValue，直接修改它即可。
+func kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
 	// —— 表头 ——
 	ui.Row(c).Gap(8).PadBottom(4).Children(func() {
 		ui.Spacer(c).Width(20) // 复选框占位
@@ -54,12 +56,12 @@ func kvEditor(c ui.C, rows *[]KeyValue, cols kvColumns) {
 
 	// —— 添加一行 ——
 	if ui.Button(c, "添加一行").Icon(iconPlus).Ghost().Clicked() {
-		*rows = append(*rows, KeyValue{Enabled: true})
+		*rows = append(*rows, model.KeyValue{Enabled: true})
 	}
 }
 
 // kvRow 渲染一行键值对，返回 true 表示点了删除。
-func kvRow(c ui.C, kv *KeyValue, cols kvColumns) bool {
+func kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
 	deleted := false
 	ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
 		// 启用开关。

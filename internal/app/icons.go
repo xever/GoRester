@@ -1,4 +1,4 @@
-package main
+package app
 
 // 本文件手工定义应用用到的矢量图标。
 //

@@ -1,4 +1,4 @@
-package main
+package app
 
 // 本文件是项目右侧主工作区：顶部标签页、URL 请求构造栏、请求参数配置区、
 // 响应结果展示区以及底部状态栏。
@@ -10,9 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vivaui/viva/app"
+	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
+
+	"gorester/internal/highlight"
+	"gorester/internal/model"
+	"gorester/internal/openapi"
+	"gorester/internal/storage"
 )
 
 // 请求配置 / 响应结果 / Body 格式的名称表。
@@ -65,7 +70,7 @@ func (s *projectSession) page(c ui.C) {
 		if res, _, ok := s.send.Take(); ok {
 			s.response = res
 			s.sending = false
-			s.respLines, s.respHighlighted = buildResponseLines(res.Body, s.responseContentType(), theme)
+			s.respLines, s.respHighlighted = highlight.BuildResponseLines(res.Body, s.responseContentType(), theme)
 		}
 	}
 
@@ -102,7 +107,7 @@ func (s *projectSession) selectEntry(e treeEntry) {
 }
 
 // openInterfaceTab 打开（或切换到）一个接口的编辑标签页。
-func (s *projectSession) openInterfaceTab(iface *Interface, isNew bool) {
+func (s *projectSession) openInterfaceTab(iface *model.Interface, isNew bool) {
 	// 已打开就直接切换。
 	for i, t := range s.workTabs {
 		if t.kind == tabInterface && t.iface == iface {
@@ -119,7 +124,7 @@ func (s *projectSession) openInterfaceTab(iface *Interface, isNew bool) {
 }
 
 // openCaseTab 打开（或切换到）一个用例的编辑标签页。
-func (s *projectSession) openCaseTab(iface *Interface, cs *Case) {
+func (s *projectSession) openCaseTab(iface *model.Interface, cs *model.Case) {
 	for i, t := range s.workTabs {
 		if t.kind == tabCase && t.case_ == cs {
 			s.activeWork = i
@@ -137,13 +142,13 @@ func (s *projectSession) openCaseTab(iface *Interface, cs *Case) {
 // createNewInterfaceDraft 新建一个未保存的接口草稿并打开编辑标签页。
 // 用户编辑后在「保存」时再选择名称与目标文件夹。
 func (s *projectSession) createNewInterfaceDraft(parentID string) {
-	iface := &Interface{
-		ID:      newID(),
+	iface := &model.Interface{
+		ID:      model.NewID(),
 		Name:    "新接口",
 		Method:  "GET",
-		Params:  []KeyValue{},
-		Headers: []KeyValue{{Enabled: true}},
-		Cookies: []KeyValue{},
+		Params:  []model.KeyValue{},
+		Headers: []model.KeyValue{{Enabled: true}},
+		Cookies: []model.KeyValue{},
 	}
 	s.draftParent = parentID
 	s.openInterfaceTab(iface, true)
@@ -171,7 +176,7 @@ func (s *projectSession) closeWorkTab(i int) {
 // ---------------------------------------------------------------------------
 
 // deleteFolder 删除文件夹及其全部内容。
-func (s *projectSession) deleteFolder(f *Folder) {
+func (s *projectSession) deleteFolder(f *model.Folder) {
 	if f == nil {
 		return
 	}
@@ -181,7 +186,7 @@ func (s *projectSession) deleteFolder(f *Folder) {
 }
 
 // removeFolder 递归地从切片里移除指定 ID 的文件夹。
-func (s *projectSession) removeFolder(list *[]*Folder, id string) bool {
+func (s *projectSession) removeFolder(list *[]*model.Folder, id string) bool {
 	for i, f := range *list {
 		if f.ID == id {
 			*list = append((*list)[:i], (*list)[i+1:]...)
@@ -195,7 +200,7 @@ func (s *projectSession) removeFolder(list *[]*Folder, id string) bool {
 }
 
 // deleteInterface 删除一个接口（根目录或某个文件夹里）。
-func (s *projectSession) deleteInterface(iface *Interface) {
+func (s *projectSession) deleteInterface(iface *model.Interface) {
 	if iface == nil {
 		return
 	}
@@ -212,7 +217,7 @@ func (s *projectSession) deleteInterface(iface *Interface) {
 	s.afterDeleteInterface(iface)
 }
 
-func (s *projectSession) removeInterfaceFromFolders(folders []*Folder, iface *Interface) bool {
+func (s *projectSession) removeInterfaceFromFolders(folders []*model.Folder, iface *model.Interface) bool {
 	for _, f := range folders {
 		for i, it := range f.Interfaces {
 			if it == iface {
@@ -228,7 +233,7 @@ func (s *projectSession) removeInterfaceFromFolders(folders []*Folder, iface *In
 }
 
 // afterDeleteInterface 删除接口后：关闭其标签页、清理选中、持久化。
-func (s *projectSession) afterDeleteInterface(iface *Interface) {
+func (s *projectSession) afterDeleteInterface(iface *model.Interface) {
 	// 关闭对应标签页。
 	for i := len(s.workTabs) - 1; i >= 0; i-- {
 		if s.workTabs[i].kind == tabInterface && s.workTabs[i].iface == iface {
@@ -246,7 +251,7 @@ func (s *projectSession) afterDeleteInterface(iface *Interface) {
 }
 
 // deleteCase 删除一个用例。
-func (s *projectSession) deleteCase(iface *Interface, cs *Case) {
+func (s *projectSession) deleteCase(iface *model.Interface, cs *model.Case) {
 	if iface == nil || cs == nil {
 		return
 	}
@@ -262,7 +267,7 @@ func (s *projectSession) deleteCase(iface *Interface, cs *Case) {
 
 // persist 把项目写回磁盘并提示。
 func (s *projectSession) persist() {
-	if err := SaveProject(s.project); err != nil {
+	if err := storage.SaveProject(s.project); err != nil {
 		s.app.toaster.Show("保存失败", err.Error(), ui.ToastError)
 		return
 	}
@@ -275,17 +280,17 @@ func (s *projectSession) persist() {
 
 // exportOpenAPI 把项目导出为 OpenAPI 3.0 文件。
 func (s *projectSession) exportOpenAPI() {
-	doc := ExportOpenAPI(s.project)
+	doc := openapi.Export(s.project)
 	data, err := doc.Marshal()
 	if err != nil {
 		s.app.toaster.Show("导出失败", err.Error(), ui.ToastError)
 		return
 	}
-	path, err := app.SaveFile(app.SaveFileOptions{
+	path, err := vivaapp.SaveFile(vivaapp.SaveFileOptions{
 		Title:            "导出 OpenAPI",
 		SuggestedName:    s.project.Name + ".openapi.json",
 		DefaultExtension: "json",
-		Filters:          []app.FileFilter{{Name: "OpenAPI JSON", Pattern: "*.json"}},
+		Filters:          []vivaapp.FileFilter{{Name: "OpenAPI JSON", Pattern: "*.json"}},
 	})
 	if err != nil {
 		s.app.toaster.Show("导出取消", err.Error(), ui.ToastInfo)
@@ -300,10 +305,10 @@ func (s *projectSession) exportOpenAPI() {
 
 // importOpenAPI 从文件导入 OpenAPI 3.0 到项目。
 func (s *projectSession) importOpenAPI() {
-	paths, err := app.OpenFiles(app.OpenFileOptions{
+	paths, err := vivaapp.OpenFiles(vivaapp.OpenFileOptions{
 		Title:         "导入 OpenAPI",
 		AllowMultiple: false,
-		Filters:       []app.FileFilter{{Name: "OpenAPI JSON", Pattern: "*.json"}},
+		Filters:       []vivaapp.FileFilter{{Name: "OpenAPI JSON", Pattern: "*.json"}},
 	})
 	if err != nil || len(paths) == 0 {
 		return
@@ -313,12 +318,12 @@ func (s *projectSession) importOpenAPI() {
 		s.app.toaster.Show("导入失败", err.Error(), ui.ToastError)
 		return
 	}
-	doc, err := ParseOpenAPI(data)
+	doc, err := openapi.Parse(data)
 	if err != nil {
 		s.app.toaster.Show("导入失败", err.Error(), ui.ToastError)
 		return
 	}
-	ImportOpenAPI(s.project, doc, doc.Info.Title)
+	openapi.Import(s.project, doc, doc.Info.Title)
 	s.markTreeDirty()
 	s.persist()
 	s.app.toaster.Show("导入成功", doc.Info.Title, ui.ToastSuccess)
@@ -396,7 +401,7 @@ func (s *projectSession) workspace(c ui.C) {
 func (s *projectSession) overview(c ui.C) {
 	theme := c.Theme()
 	p := s.project
-	ifaces := p.allInterfaces()
+	ifaces := p.AllInterfaces()
 	caseCount := 0
 	for _, i := range ifaces {
 		caseCount += len(i.Cases)
@@ -417,7 +422,7 @@ func (s *projectSession) overview(c ui.C) {
 }
 
 // countFolders 递归统计文件夹数量。
-func countFolders(folders []*Folder) int {
+func countFolders(folders []*model.Folder) int {
 	n := len(folders)
 	for _, f := range folders {
 		n += countFolders(f.Folders)
@@ -562,7 +567,7 @@ func (s *projectSession) requestConfig(c ui.C) {
 }
 
 // bodyPanel 渲染请求体配置面板（格式子 Tab + 键值表 / 原始编辑器）。
-func (s *projectSession) bodyPanel(c ui.C, body *Body) {
+func (s *projectSession) bodyPanel(c ui.C, body *model.Body) {
 	ui.Column(c).Children(func() {
 		// 格式子 Tab。
 		ui.Tabs(c, &s.bodyFormat, bodyFormatIndices, bodyFormatLabel)
@@ -592,7 +597,7 @@ func (s *projectSession) bodyPanel(c ui.C, body *Body) {
 }
 
 // authPanel 渲染认证配置面板。
-func (s *projectSession) authPanel(c ui.C, auth *Auth) {
+func (s *projectSession) authPanel(c ui.C, auth *model.Auth) {
 	ui.Column(c).Gap(8).Children(func() {
 		ui.Select(c, &auth.Type, authTypeNames, identityLabel).Width(160).Label("认证类型")
 		switch auth.Type {
@@ -687,14 +692,14 @@ func (s *projectSession) responseBody(c ui.C, theme gfx.Theme) {
 
 	// Raw 模式直接用原始字节按行展示。
 	if s.respFormat == 1 {
-		s.renderBodyLines(c, plainLines(s.response.BodyString()), theme)
+		s.renderBodyLines(c, highlight.PlainLines(s.response.BodyString()), theme)
 		return
 	}
 	s.renderBodyLines(c, s.respLines, theme)
 }
 
 // renderBodyLines 用 ui.List 渲染带行号的内容。
-func (s *projectSession) renderBodyLines(c ui.C, lines []respLine, theme gfx.Theme) {
+func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme gfx.Theme) {
 	if len(lines) == 0 {
 		ui.Text(c, "(空响应体)").Muted().Pad(12)
 		return
@@ -707,8 +712,8 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []respLine, theme gfx.The
 			ui.Text(row.C, fmt.Sprintf("%d", row.Index+1)).Color(theme.MutedForeground).Mono().FontSize(12).Width(40).TextEnd()
 			// 内容片段。
 			ui.Row(row.C).Children(func() {
-				for _, seg := range line.segs {
-					ui.Text(row.C, seg.text).Color(seg.color).Mono().FontSize(12)
+				for _, seg := range line.Segs {
+					ui.Text(row.C, seg.Text).Color(seg.Color).Mono().FontSize(12)
 				}
 			})
 		})
@@ -716,7 +721,7 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []respLine, theme gfx.The
 }
 
 // responseKVs 渲染响应 Header / Cookie 键值对（只读展示）。
-func (s *projectSession) responseKVs(c ui.C, kvs []KeyValue) {
+func (s *projectSession) responseKVs(c ui.C, kvs []model.KeyValue) {
 	if len(kvs) == 0 {
 		ui.Text(c, "(无数据)").Muted().Pad(12)
 		return
@@ -733,7 +738,7 @@ func (s *projectSession) responseKVs(c ui.C, kvs []KeyValue) {
 }
 
 // responseHeaders 返回响应头键值对。
-func (s *projectSession) responseHeaders() []KeyValue {
+func (s *projectSession) responseHeaders() []model.KeyValue {
 	if s.response == nil {
 		return nil
 	}
@@ -741,14 +746,14 @@ func (s *projectSession) responseHeaders() []KeyValue {
 }
 
 // responseCookies 从响应头里解析 Set-Cookie。
-func (s *projectSession) responseCookies() []KeyValue {
+func (s *projectSession) responseCookies() []model.KeyValue {
 	if s.response == nil {
 		return nil
 	}
-	var out []KeyValue
+	var out []model.KeyValue
 	for _, h := range s.response.Headers {
 		if strings.EqualFold(h.Key, "Set-Cookie") {
-			out = append(out, KeyValue{Key: "Set-Cookie", Value: h.Value, Enabled: true})
+			out = append(out, model.KeyValue{Key: "Set-Cookie", Value: h.Value, Enabled: true})
 		}
 	}
 	return out
@@ -761,8 +766,8 @@ func (s *projectSession) findNext() {
 	}
 	needle := strings.ToLower(s.respSearch)
 	for i, line := range s.respLines {
-		for _, seg := range line.segs {
-			if strings.Contains(strings.ToLower(seg.text), needle) {
+		for _, seg := range line.Segs {
+			if strings.Contains(strings.ToLower(seg.Text), needle) {
 				s.respList.ScrollIntoView(i)
 				return
 			}
@@ -776,7 +781,7 @@ func (s *projectSession) copyResponse() {
 	if s.response == nil {
 		return
 	}
-	if err := app.SetClipboardText(s.response.BodyString()); err != nil {
+	if err := vivaapp.SetClipboardText(s.response.BodyString()); err != nil {
 		s.app.toaster.Show("复制失败", err.Error(), ui.ToastError)
 		return
 	}
@@ -794,7 +799,7 @@ func (s *projectSession) downloadResponse() {
 	} else if strings.Contains(s.responseContentType(), "xml") {
 		ext = "xml"
 	}
-	path, err := app.SaveFile(app.SaveFileOptions{
+	path, err := vivaapp.SaveFile(vivaapp.SaveFileOptions{
 		Title:            "下载响应",
 		SuggestedName:    "response." + ext,
 		DefaultExtension: ext,
@@ -838,7 +843,7 @@ func (s *projectSession) saveCurrent() {
 // ---------------------------------------------------------------------------
 
 // currentInterface 返回当前标签页正在编辑的接口（编辑用例时返回其所属接口）。
-func (s *projectSession) currentInterface() *Interface {
+func (s *projectSession) currentInterface() *model.Interface {
 	tab := s.currentTab()
 	if tab == nil {
 		return nil
@@ -847,7 +852,7 @@ func (s *projectSession) currentInterface() *Interface {
 		return tab.iface
 	}
 	if tab.kind == tabCase {
-		return s.project.findInterface(tab.parentID)
+		return s.project.FindInterface(tab.parentID)
 	}
 	return nil
 }
@@ -857,11 +862,11 @@ func (s *projectSession) currentInterface() *Interface {
 type requestFields struct {
 	method  *string
 	path    *string
-	params  *[]KeyValue
-	headers *[]KeyValue
-	cookies *[]KeyValue
-	body    *Body
-	auth    *Auth
+	params  *[]model.KeyValue
+	headers *[]model.KeyValue
+	cookies *[]model.KeyValue
+	body    *model.Body
+	auth    *model.Auth
 }
 
 func (s *projectSession) requestFields() *requestFields {
@@ -888,11 +893,11 @@ func (s *projectSession) requestFields() *requestFields {
 func formatBody(raw, mode string) string {
 	switch mode {
 	case "json":
-		if pretty, ok := prettyJSON(raw); ok {
+		if pretty, ok := highlight.PrettyJSON(raw); ok {
 			return pretty
 		}
 	case "xml":
-		return prettyXML(raw)
+		return highlight.PrettyXML(raw)
 	}
 	return raw
 }

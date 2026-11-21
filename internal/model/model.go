@@ -1,8 +1,7 @@
-package main
-
-// 本文件定义 GoRester 的核心数据模型。
+// Package model 定义 GoRester 的核心数据模型。
 // 所有数据最终都会以 JSON 格式保存到用户目录 ~/gorester/ 下。
 // 结构体字段后面的 `json:"..."` 标签，决定了保存成 JSON 文件时的字段名。
+package model
 
 import "time"
 
@@ -44,6 +43,14 @@ type KeyValue struct {
 	Desc     string `json:"desc,omitempty"`     // 说明
 	Required bool   `json:"required,omitempty"` // 是否必填（界面上显示 * 号）
 	Enabled  bool   `json:"enabled"`            // 是否启用（勾选后才参与请求）
+}
+
+// TypeOrDefault 返回键值对的类型，空则返回 "string"（表单默认类型）。
+func (kv KeyValue) TypeOrDefault() string {
+	if kv.Type == "" {
+		return "string"
+	}
+	return kv.Type
 }
 
 // ---------------------------------------------------------------------------
