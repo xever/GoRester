@@ -16,9 +16,14 @@ gorester/
 │   ├── httpclient/        # HTTP 客户端与请求执行
 │   ├── openapi/           # OpenAPI 3.0 导入导出
 │   └── highlight/         # JSON/XML 格式化与语法高亮
-├── scripts/               # 构建脚本（build / run / test）
+├── resource/              # 图标资源（内嵌进二进制）
+│   ├── icon.ico           #   Windows 图标
+│   ├── icon.icns          #   macOS 图标
+│   └── resource.go        #   内嵌 + 解码运行时窗口图标
+├── scripts/               # 构建 / 打包脚本（build / run / test / package-win）
 ├── dist/                  # 成品（编译产物，不入库）
 ├── docs/                  # 文档（本 README、需求说明）
+├── viva.toml              # viva 打包清单（应用名、图标、版本等）
 ├── go.mod                 # Go 模块定义
 ├── go.sum                 # 依赖校验
 └── .gitignore
@@ -38,6 +43,16 @@ gorester/
 ```
 
 需要 Go 1.26+ 与各平台对应工具链（macOS 需要 Xcode 命令行工具）。
+
+## 打包
+
+```bash
+./scripts/package-win.sh  # 打包 Windows x64：exe + 图标，输出 zip
+```
+
+Windows 目标走 purego（无需 mingw-w64 交叉编译器）。图标和版本信息由 `viva.toml`
+的 `[app] icon` 写入 exe；运行时窗口图标由内嵌的 `resource/icon.ico` 解码提供。
+打包 macOS 时把 `viva.toml` 里的 `icon` 改为 `resource/icon.icns` 即可。
 
 ## 测试与检查
 

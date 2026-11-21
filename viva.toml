@@ -1,0 +1,23 @@
+# GoRester 的项目清单（viva build / viva package 读取）。
+
+[app]
+# 显示名；打包 macOS 时也用作 .app 名称。
+name = "GoRester"
+# 反向域名风格的包标识。
+id = "dev.gorester"
+version = "0.1.0"
+# 生成的可执行文件名。
+executable = "gorester"
+# 主包路径。
+package = "./cmd/gorester"
+# 应用图标。Windows 打包接受 .ico 或 .png；macOS 打包接受 .icns 或 .png。
+# 如需打包 macOS，请把这里改成 "resource/icon.icns"。
+icon = "resource/icon.ico"
+
+[build]
+# 产物输出目录。
+out = "dist"
+
+[windows]
+# 卸载列表（Apps & features）里显示的发布者。
+publisher = "GoRester"

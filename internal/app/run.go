@@ -10,6 +10,7 @@ import (
 
 	"gorester/internal/model"
 	"gorester/internal/storage"
+	"gorester/resource"
 )
 
 // ---------------------------------------------------------------------------
@@ -208,6 +209,10 @@ func Run() {
 		Height:    820,
 		MinWidth:  960,
 		MinHeight: 600,
+	}
+	// 运行时窗口图标（Windows 任务栏 / Alt+Tab、未打包时的 macOS Dock）。
+	if size, rgba := resource.WindowIconRGBA(); size > 0 {
+		cfg.Icon = vivaapp.WindowIcon{Size: size, RGBA: rgba}
 	}
 	// 跟随系统明暗主题（Theme 留空、开启 FollowSystemTheme）。
 	page := ui.NewPage(ui.PageConfig{View: m.page, FollowSystemTheme: true})
