@@ -5,6 +5,7 @@ package app
 
 import (
 	vivaapp "github.com/vivaui/viva/app"
+	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
 
 	"gorester/internal/model"
@@ -185,7 +186,11 @@ func Run() {
 	}
 	// 跟随系统明暗主题（Theme 留空、开启 FollowSystemTheme）。
 	page := ui.NewPage(ui.PageConfig{View: m.page, FollowSystemTheme: true})
-	if err := vivaapp.Run(ui.Configure(page, cfg)); err != nil {
+
+	// 注意：必须用 RunCanvas（而非 app.Run）——RunCanvas 才会把页面的
+	// 绘制回调（painter）挂到原生窗口上；app.Run 只开窗口不绘制，会黑屏。
+	var canvas gfx.Canvas
+	if err := vivaapp.RunCanvas(ui.Configure(page, cfg), &canvas); err != nil {
 		panic(err)
 	}
 }
