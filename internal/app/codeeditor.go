@@ -63,9 +63,15 @@ func (s *projectSession) bodyEditorKey(event gfx.KeyEvent) gfx.EventResult {
 	return gfx.EventResult{Handled: true, Repaint: true}
 }
 
-// bodyEditorText 把原生文本服务（输入法、剪贴板）接到编辑器的文本模型上。
+// bodyEditorText 提供原生文本输入（打字、输入法、剪贴板），但把文字颜色设为
+// 全透明：macOS 的原生编辑器只接收输入、不绘制任何东西（文字/光标/选区/输入法
+// 组合都不画）。文字、光标、选区、语法高亮全部由 codeeditor 自己绘制，
+// 从而实现所见即所得，也避免了原生输入框与绘制内容错位、失焦隐藏的问题。
 func (s *projectSession) bodyEditorText(context window.TextInputContext) *window.TextInput {
-	return &window.TextInput{Editor: s.bodyEditor, Bounds: context.Bounds}
+	return &window.TextInput{
+		Editor: s.bodyEditor,
+		Color:  gfx.Color{Alpha: 0}, // 全透明：只输入、不绘制
+	}
 }
 
 // ---------------------------------------------------------------------------

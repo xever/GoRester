@@ -198,12 +198,15 @@ func newProjectSession(a *appModel, p *model.Project) *projectSession {
 	s.envLabelFn = s.envNameAt
 
 	// 请求体代码编辑器：文本模型 + 编辑命令 + 原生输入。
+	// 原生输入用「全透明文字」：macOS 原生编辑器只接收输入（打字/输入法/剪贴板），
+	// 不绘制文字/光标/选区，全部由 codeeditor 自己绘制（带语法高亮），所见即所得。
 	s.bodyEditor = text.NewEditor("")
 	s.bodyCode.Document = s.bodyEditor
 	s.bodyCode.Key = s.bodyEditorKey
 	s.bodyCode.Text = s.bodyEditorText
 	s.bodyCode.Snapshot.LineNumbers = true
 	s.bodyCode.Snapshot.Wrap = true
+	s.bodyCode.Snapshot.ShowCaret = true
 	return s
 }
 

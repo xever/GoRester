@@ -162,3 +162,33 @@ func TestJSONBodyEditorRenders(t *testing.T) {
 		t.Fatal("json 编辑器应显示「压缩」按钮")
 	}
 }
+
+// TestJSONBodyEditorTyping 验证 json 代码编辑器能正常输入（原生输入 + 透明文字）。
+func TestJSONBodyEditorTyping(t *testing.T) {
+	useTempHome(t)
+	m := newAppModel()
+	m.createProject("测试", "")
+	s := m.tabs[0]
+
+	iface := &model.Interface{ID: model.NewID(), Name: "创建用户", Method: "POST", Path: "/users",
+		Body: model.Body{Mode: "json", Raw: `{}`}}
+	s.project.Interfaces = append(s.project.Interfaces, iface)
+	s.markTreeDirty()
+	s.openInterfaceTab(iface, false)
+	s.reqTab = 1     // Body 标签
+	s.bodyFormat = 3 // json
+
+	driver := openDriver(t, m)
+	before := s.bodyEditor.String()
+
+	// 点击编辑器获得焦点，输入字符。
+	clickLabel(t, driver, "请求体内容")
+	if err := driver.Type("x"); err != nil {
+		t.Fatalf("输入失败: %v", err)
+	}
+
+	after := s.bodyEditor.String()
+	if !strings.Contains(after, "x") || before == after {
+		t.Fatalf("输入未生效：before=%q after=%q", before, after)
+	}
+}
