@@ -466,19 +466,24 @@ func (s *projectSession) workTabBar(c ui.C) {
 	ui.Row(c).FillWidth().Height(40).PadX(8).Gap(2).Items(ui.Center).Children(func() {
 		// 各标签页。
 		for i, t := range s.workTabs {
+			active := s.activeWork == i
 			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
 				Hit(ui.ID(c), "工作区标签 "+t.name).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
-					ui.Text(c, t.name)
+					if active {
+						ui.Text(c, t.name).Color(theme.SelectionForeground)
+					} else {
+						ui.Text(c, t.name)
+					}
 					// 概览标签不可关闭，接口 / 用例标签可关闭。
 					if t.kind != tabOverview {
-						if tabCloseButton(c, *theme, t.name).Clicked() {
+						if tabCloseButton(c, *theme, t.name, active).Clicked() {
 							s.closeWorkTab(i)
 						}
 					}
 				})
-			if s.activeWork == i {
-				tab.Background(theme.Card)
+			if active {
+				tab.Background(theme.Selection)
 			}
 			if tab.Clicked() {
 				s.activeWork = i

@@ -72,14 +72,19 @@ func (m *appModel) tabBar(c ui.C) {
 	theme := c.Theme()
 	ui.Row(c).FillWidth().Height(36).Background(theme.Background).PadX(8).Gap(2).Items(ui.Center).Children(func() {
 		// 主页标签：用 Row 包住图标和文字，Hit 作为点击区域，图标与文字垂直居中。
+		homeActive := m.active < 0
 		home := ui.Row(c).PadX(12).Height(30).Radius(theme.Metrics.RadiusControl).Gap(8).Items(ui.Center).
 			Hit(ui.ID(c), "主页").Hover(ui.Look{}.Background(theme.Hover)).
 			Children(func() {
 				ui.Icon(c, iconHome).Size(16, 16).Color(theme.Primary)
-				ui.Text(c, "主页")
+				if homeActive {
+					ui.Text(c, "主页").Color(theme.SelectionForeground)
+				} else {
+					ui.Text(c, "主页")
+				}
 			})
-		if m.active < 0 {
-			home.Background(theme.Card)
+		if homeActive {
+			home.Background(theme.Selection)
 		}
 		if home.Clicked() {
 			m.active = -1
@@ -87,17 +92,22 @@ func (m *appModel) tabBar(c ui.C) {
 
 		// 各项目标签。
 		for i, s := range m.tabs {
+			active := m.active == i
 			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
 				Hit(ui.ID(c), "标签 "+s.project.Name).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
-					ui.Text(c, s.project.Name)
-					// 关闭按钮（灰色 x，靠左一点）。
-					if tabCloseButton(c, *theme, s.project.Name).Clicked() {
+					if active {
+						ui.Text(c, s.project.Name).Color(theme.SelectionForeground)
+					} else {
+						ui.Text(c, s.project.Name)
+					}
+					// 关闭按钮（x 标记）。
+					if tabCloseButton(c, *theme, s.project.Name, active).Clicked() {
 						m.closeTab(i)
 					}
 				})
-			if m.active == i {
-				tab.Background(theme.Card)
+			if active {
+				tab.Background(theme.Selection)
 			}
 			if tab.Clicked() {
 				m.active = i
@@ -106,13 +116,18 @@ func (m *appModel) tabBar(c ui.C) {
 	})
 }
 
-// tabCloseButton 渲染一个灰色、紧凑的标签页关闭按钮（返回可读 Clicked 的 Box）。
-func tabCloseButton(c ui.C, theme gfx.Theme, label string) ui.Box {
+// tabCloseButton 渲染一个紧凑的标签页关闭按钮（返回可读 Clicked 的 Box）。
+// active 为 true 时，关闭图标用选中态前景色，保证在选中底色上清晰可见。
+func tabCloseButton(c ui.C, theme gfx.Theme, label string, active bool) ui.Box {
+	color := theme.MutedForeground
+	if active {
+		color = theme.SelectionForeground
+	}
 	return ui.Row(c).Size(18, 18).Shrink(0).Left(15).Radius(theme.Metrics.RadiusControl).
 		Hit(ui.ID(c), "关闭 "+label).
 		Hover(ui.Look{}.Background(theme.Hover)).
 		Children(func() {
-			ui.Icon(c, iconClose).Size(12, 12).Color(theme.MutedForeground)
+			ui.Icon(c, iconClose).Size(12, 12).Color(color)
 		})
 }
 
