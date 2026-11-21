@@ -46,6 +46,17 @@ func (s *projectSession) sidebar(c ui.C) {
 
 	// —— 新建 + 导入导出 ——
 	ui.Row(c).PadX(12).PadBottom(8).Gap(8).Items(ui.Center).Children(func() {
+
+		// 导入 / 导出 OpenAPI。
+		if ui.Button(c, "").Icon(iconDownload).Ghost().Tooltip("导入OpenAPI").Small().Clicked() {
+			s.importOpenAPI()
+		}
+		if ui.Button(c, "").Icon(iconUpload).Ghost().Tooltip("导出").Small().Clicked() {
+			s.exportOpenAPI()
+		}
+
+		ui.Spacer(c).Grow(1)
+
 		newBtn := ui.Button(c, "新建").Icon(iconPlus)
 		if newBtn.Clicked() {
 			s.newMenuOpen = !s.newMenuOpen
@@ -61,15 +72,6 @@ func (s *projectSession) sidebar(c ui.C) {
 			}
 		})
 
-		ui.Spacer(c).Grow(1)
-
-		// 导入 / 导出 OpenAPI。
-		if ui.Button(c, "导入 OpenAPI").Icon(iconUpload).Ghost().Small().Clicked() {
-			s.importOpenAPI()
-		}
-		if ui.Button(c, "导出 OpenAPI").Icon(iconDownload).Ghost().Small().Clicked() {
-			s.exportOpenAPI()
-		}
 	})
 
 	ui.Divider(c)

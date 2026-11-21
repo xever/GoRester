@@ -138,3 +138,27 @@ func TestCreateProjectFlow(t *testing.T) {
 		t.Fatal("创建后应出现项目标签")
 	}
 }
+
+// TestJSONBodyEditorRenders 验证 json 请求体代码编辑器能正常渲染。
+func TestJSONBodyEditorRenders(t *testing.T) {
+	useTempHome(t)
+	m := newAppModel()
+	m.createProject("测试", "")
+	s := m.tabs[0]
+
+	iface := &model.Interface{ID: model.NewID(), Name: "创建用户", Method: "POST", Path: "/users",
+		Body: model.Body{Mode: "json", Raw: `{"name":"张三"}`}}
+	s.project.Interfaces = append(s.project.Interfaces, iface)
+	s.markTreeDirty()
+	s.openInterfaceTab(iface, false)
+	s.reqTab = 1     // Body 标签
+	s.bodyFormat = 3 // json
+
+	driver := openDriver(t, m)
+	if !hasLabel(driver, "格式化") {
+		t.Fatal("json 编辑器应显示「格式化」按钮")
+	}
+	if !hasLabel(driver, "压缩") {
+		t.Fatal("json 编辑器应显示「压缩」按钮")
+	}
+}

@@ -9,7 +9,9 @@ import (
 	"sync"
 
 	"github.com/vivaui/viva/gfx"
+	"github.com/vivaui/viva/text"
 	"github.com/vivaui/viva/ui"
+	"github.com/vivaui/viva/ui/codeeditor"
 
 	"gorester/internal/highlight"
 	"gorester/internal/httpclient"
@@ -148,6 +150,11 @@ type projectSession struct {
 	bodyFormat int // Body 子 Tab 下标
 	reqTab     int // 请求配置 Tab 下标：0 Params 1 Body 2 Cookie 3 Header 4 Auth
 	respTab    int // 响应结果 Tab 下标：0 Body 1 Cookie 2 Header
+
+	// —— 请求体代码编辑器（json / xml / raw 语法高亮）——
+	bodyEditor       *text.Editor      // 编辑器的文本模型
+	bodyEditorTarget *model.Body       // 编辑器当前绑定的请求体
+	bodyCode         codeeditor.Editor // 代码编辑器视图
 }
 
 // newProjectSession 为一个项目创建会话。
@@ -189,6 +196,14 @@ func newProjectSession(a *appModel, p *model.Project) *projectSession {
 	s.labelFn = s.labelAt
 	s.contentFn = s.contentAt
 	s.envLabelFn = s.envNameAt
+
+	// 请求体代码编辑器：文本模型 + 编辑命令 + 原生输入。
+	s.bodyEditor = text.NewEditor("")
+	s.bodyCode.Document = s.bodyEditor
+	s.bodyCode.Key = s.bodyEditorKey
+	s.bodyCode.Text = s.bodyEditorText
+	s.bodyCode.Snapshot.LineNumbers = true
+	s.bodyCode.Snapshot.Wrap = true
 	return s
 }
 

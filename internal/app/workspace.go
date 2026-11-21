@@ -13,6 +13,7 @@ import (
 	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
+	"github.com/vivaui/viva/ui/codeeditor"
 
 	"gorester/internal/highlight"
 	"gorester/internal/model"
@@ -267,6 +268,8 @@ func (s *projectSession) deleteCase(iface *model.Interface, cs *model.Case) {
 
 // persist 把项目写回磁盘并提示。
 func (s *projectSession) persist() {
+	// 保存前先把代码编辑器里未落盘的编辑写回请求体。
+	s.flushBodyEditor()
 	if err := storage.SaveProject(s.project); err != nil {
 		s.app.toaster.Show("保存失败", err.Error(), ui.ToastError)
 		return
@@ -335,6 +338,8 @@ func (s *projectSession) importOpenAPI() {
 
 // doSend 根据当前编辑内容 + 环境发起请求（异步）。
 func (s *projectSession) doSend() {
+	// 发送前先把代码编辑器里未落盘的编辑写回请求体。
+	s.flushBodyEditor()
 	opts := s.buildOptions()
 	if opts.Method == "" {
 		s.app.toaster.Show("无法发送", "请先选择 HTTP 方法", ui.ToastError)
@@ -461,13 +466,13 @@ func (s *projectSession) workTabBar(c ui.C) {
 	ui.Row(c).FillWidth().Height(40).PadX(8).Gap(2).Items(ui.Center).Children(func() {
 		// 各标签页。
 		for i, t := range s.workTabs {
-			tab := ui.Row(c).PadLeft(12).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).
+			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
 				Hit(ui.ID(c), "工作区标签 "+t.name).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
 					ui.Text(c, t.name)
 					// 概览标签不可关闭，接口 / 用例标签可关闭。
 					if t.kind != tabOverview {
-						if ui.Button(c, "关闭 "+t.name).Icon(iconClose).IconOnly().Ghost().Small().Clicked() {
+						if tabCloseButton(c, *theme, t.name).Clicked() {
 							s.closeWorkTab(i)
 						}
 					}
@@ -500,17 +505,24 @@ func (s *projectSession) workTabBar(c ui.C) {
 
 // urlBar 渲染 URL 请求构造栏。
 func (s *projectSession) urlBar(c ui.C) {
+	theme := c.Theme()
 	f := s.requestFields()
 	ui.Row(c).FillWidth().Pad(12).Gap(8).Items(ui.Center).Children(func() {
 		if f == nil {
 			return
 		}
-		// —— 方法选择器（绿色 GET 等，带下拉）——
-		methodBtn := ui.Button(c, *f.method).Ghost().Weight(gfx.WeightSemibold).Color(methodColor(*f.method))
-		if methodBtn.Clicked() {
+		// —— 方法选择器：用 Row + 彩色文字实现，方法名显示对应颜色 ——
+		methodBox := ui.Row(c).PadX(10).Height(theme.Metrics.ControlHeight).Radius(theme.Metrics.RadiusControl).Gap(4).Items(ui.Center).
+			Background(theme.Card).Border(1, theme.Border).
+			Hit(ui.ID(c), "请求方法").Hover(ui.Look{}.Background(theme.Hover)).
+			Children(func() {
+				ui.Text(c, *f.method).Color(methodColor(*f.method)).Weight(gfx.WeightSemibold)
+				ui.Icon(c, iconChevronDown).Size(12, 12).Color(theme.MutedForeground)
+			})
+		if methodBox.Clicked() {
 			s.methodMenuOpen = !s.methodMenuOpen
 		}
-		ui.Menu(c, methodBtn, &s.methodMenuOpen, func(menu *ui.MenuItems) {
+		ui.Menu(c, methodBox, &s.methodMenuOpen, func(menu *ui.MenuItems) {
 			for _, m := range methodStrings {
 				if menu.Item(m).Clicked() {
 					*f.method = m
@@ -521,13 +533,11 @@ func (s *projectSession) urlBar(c ui.C) {
 		// —— URL 输入框 ——
 		ui.TextField(c, f.path, "请求路径", "/api/users").Grow(1)
 
-		// —— 发送（带下拉箭头）——
+		// —— 发送——
 		if ui.Button(c, "发送").Icon(iconSend).Clicked() {
 			s.doSend()
 		}
-		if ui.Button(c, "发送选项").Icon(iconChevronDown).IconOnly().Clicked() {
-			s.doSend()
-		}
+
 		// —— 保存 / 保存为用例 ——
 		if ui.Button(c, "保存").Outline().Clicked() {
 			s.saveCurrent()
@@ -548,13 +558,16 @@ func (s *projectSession) requestConfig(c ui.C) {
 		if f == nil {
 			return
 		}
-		// 内容区（可滚动）。
+		// Body 标签需要撑满高度（json/xml/raw 代码编辑器内部滚动），单独处理。
+		if s.reqTab == 1 {
+			s.bodyPanel(c, f.body)
+			return
+		}
+		// 其它标签用可滚动区域。
 		ui.Scroll(c).Grow(1).Pad(12).Children(func() {
 			switch s.reqTab {
 			case 0:
 				kvEditor(c, f.params, kvColumns{valueLabel: "参数值"})
-			case 1:
-				s.bodyPanel(c, f.body)
 			case 2:
 				kvEditor(c, f.cookies, kvColumns{valueLabel: "Cookie 值"})
 			case 3:
@@ -566,33 +579,57 @@ func (s *projectSession) requestConfig(c ui.C) {
 	})
 }
 
-// bodyPanel 渲染请求体配置面板（格式子 Tab + 键值表 / 原始编辑器）。
+// bodyPanel 渲染请求体配置面板（格式子 Tab + 键值表 / 代码编辑器）。
 func (s *projectSession) bodyPanel(c ui.C, body *model.Body) {
-	ui.Column(c).Children(func() {
+	ui.Column(c).Fill().Children(func() {
 		// 格式子 Tab。
-		ui.Tabs(c, &s.bodyFormat, bodyFormatIndices, bodyFormatLabel)
+		ui.Tabs(c, &s.bodyFormat, bodyFormatIndices, bodyFormatLabel).PadX(12)
 		body.Mode = bodyFormatModes[s.bodyFormat]
 
 		switch body.Mode {
 		case "form-data":
-			kvEditor(c, &body.FormData, kvColumns{withType: true, valueLabel: "示例值"})
-		case "x-www-form-urlencoded":
-			kvEditor(c, &body.URLEncoded, kvColumns{withType: true, valueLabel: "示例值"})
-		case "json", "xml", "raw":
-			ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
-				ui.Text(c, "内容").Muted().Small()
-				ui.Spacer(c).Grow(1)
-				if ui.Button(c, "格式化").Ghost().Small().Clicked() {
-					body.Raw = formatBody(body.Raw, body.Mode)
-				}
-				if ui.Button(c, "压缩").Ghost().Small().Clicked() {
-					body.Raw = minifyBody(body.Raw, body.Mode)
-				}
+			ui.Scroll(c).Grow(1).Pad(12).Children(func() {
+				kvEditor(c, &body.FormData, kvColumns{withType: true, valueLabel: "示例值"})
 			})
-			ui.TextArea(c, &body.Raw, "请求体内容", "").Grow(1).Mono().FontSize(12)
+		case "x-www-form-urlencoded":
+			ui.Scroll(c).Grow(1).Pad(12).Children(func() {
+				kvEditor(c, &body.URLEncoded, kvColumns{withType: true, valueLabel: "示例值"})
+			})
+		case "json", "xml", "raw":
+			s.bodyCodeEditor(c, body)
 		default:
-			ui.Text(c, "此接口没有请求体").Muted()
+			ui.Text(c, "此接口没有请求体").Muted().Pad(12)
 		}
+	})
+}
+
+// bodyCodeEditor 渲染 json / xml / raw 的代码编辑器（撑满高度 + 语法高亮 + 内部滚动）。
+func (s *projectSession) bodyCodeEditor(c ui.C, body *model.Body) {
+	// 先同步：目标 body 变化时回写旧值并载入新值。
+	s.bindBodyEditor(body)
+
+	// 设置语言与高亮。
+	s.bodyCode.Snapshot.Language = body.Mode
+	s.bodyCode.Snapshot.Highlight = codeHighlight
+
+	ui.Column(c).Fill().Pad(12).Gap(8).Children(func() {
+		ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
+			ui.Text(c, "内容").Muted().Small()
+			ui.Spacer(c).Grow(1)
+			if ui.Button(c, "格式化").Ghost().Small().Clicked() {
+				// 以编辑器当前内容为准，格式化后写回 body 与编辑器。
+				formatted := formatBody(s.bodyEditor.String(), body.Mode)
+				body.Raw = formatted
+				s.replaceEditorText(formatted)
+			}
+			if ui.Button(c, "压缩").Ghost().Small().Clicked() {
+				compressed := minifyBody(s.bodyEditor.String(), body.Mode)
+				body.Raw = compressed
+				s.replaceEditorText(compressed)
+			}
+		})
+		// 代码编辑器撑满剩余高度，内容超出时内部滚动。
+		codeeditor.View(c, "请求体内容", &s.bodyCode).Fill()
 	})
 }
 

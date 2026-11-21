@@ -71,11 +71,11 @@ func (m *appModel) page(c ui.C) {
 func (m *appModel) tabBar(c ui.C) {
 	theme := c.Theme()
 	ui.Row(c).FillWidth().Height(40).Background(theme.Background).PadX(8).Gap(2).Items(ui.Center).Children(func() {
-		// 主页标签：用 Row 包住图标和文字，Hit 作为点击区域。
-		home := ui.Row(c).PadX(14).Height(34).Radius(theme.Metrics.RadiusControl).Gap(8).
+		// 主页标签：用 Row 包住图标和文字，Hit 作为点击区域，图标与文字垂直居中。
+		home := ui.Row(c).PadX(14).Height(34).Radius(theme.Metrics.RadiusControl).Gap(8).Items(ui.Center).
 			Hit(ui.ID(c), "主页").Hover(ui.Look{}.Background(theme.Hover)).
 			Children(func() {
-				ui.Icon(c, iconHome).Color(theme.Foreground)
+				ui.Icon(c, iconHome).Size(18, 18).Color(theme.Primary)
 				ui.Text(c, "主页")
 			})
 		if m.active < 0 {
@@ -87,12 +87,12 @@ func (m *appModel) tabBar(c ui.C) {
 
 		// 各项目标签。
 		for i, s := range m.tabs {
-			tab := ui.Row(c).PadLeft(12).Height(34).Radius(theme.Metrics.RadiusControl).Gap(6).
+			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(34).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
 				Hit(ui.ID(c), "标签 "+s.project.Name).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
 					ui.Text(c, s.project.Name)
-					// 关闭按钮（x 标记）。
-					if ui.Button(c, "关闭 "+s.project.Name).Icon(iconClose).IconOnly().Ghost().Small().Clicked() {
+					// 关闭按钮（灰色 x，靠左一点）。
+					if tabCloseButton(c, *theme, s.project.Name).Clicked() {
 						m.closeTab(i)
 					}
 				})
@@ -104,6 +104,16 @@ func (m *appModel) tabBar(c ui.C) {
 			}
 		}
 	})
+}
+
+// tabCloseButton 渲染一个灰色、紧凑的标签页关闭按钮（返回可读 Clicked 的 Box）。
+func tabCloseButton(c ui.C, theme gfx.Theme, label string) ui.Box {
+	return ui.Row(c).Size(18, 18).Shrink(0).Center().Radius(theme.Metrics.RadiusControl).
+		Hit(ui.ID(c), "关闭 "+label).
+		Hover(ui.Look{}.Background(theme.Hover)).
+		Children(func() {
+			ui.Icon(c, iconClose).Size(12, 12).Color(theme.MutedForeground)
+		})
 }
 
 // closeTab 关闭一个项目标签页，并同步调整当前激活下标。
