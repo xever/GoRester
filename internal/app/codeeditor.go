@@ -73,19 +73,18 @@ func (s *projectSession) bodyEditorText(context window.TextInputContext) *window
 // ---------------------------------------------------------------------------
 
 // codeHighlight 是代码编辑器的单行语法高亮函数，给 JSON / XML 文本行着色。
-// 颜色取自最近一次 paint 的主题（bodyTheme），保证明暗主题下都协调。
 // 返回的 CodeEditorRun 用字节范围标记行内的着色区间。
-func (s *projectSession) codeHighlight(language, line string, dst []components.CodeEditorRun) []components.CodeEditorRun {
+func codeHighlight(language, line string, dst []components.CodeEditorRun) []components.CodeEditorRun {
 	dst = dst[:0]
 	if language == "raw" {
 		return dst // raw 不染色
 	}
 
-	theme := s.bodyTheme
-	key := theme.Accent         // 键名 / 标签
-	str := theme.Success        // 字符串
-	num := theme.Primary        // 数字
-	kw := gfx.RGB(180, 90, 220) // true / false / null
+	key := gfx.RGB(110, 168, 255) // 键名 / 标签：蓝
+	str := gfx.RGB(106, 190, 110) // 字符串：绿
+	num := gfx.RGB(255, 166, 87)  // 数字：橙
+	kw := gfx.RGB(210, 130, 255)  // true / false / null：紫
+	tag := gfx.RGB(110, 168, 255) // XML 标签：蓝
 
 	i, n := 0, len(line)
 	for i < n {
@@ -131,7 +130,7 @@ func (s *projectSession) codeHighlight(language, line string, dst []components.C
 				j++
 			}
 			if j > start {
-				dst = append(dst, components.CodeEditorRun{Start: start, End: j, Color: key})
+				dst = append(dst, components.CodeEditorRun{Start: start, End: j, Color: tag})
 			}
 			i = j
 
