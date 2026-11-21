@@ -486,7 +486,7 @@ func (s *projectSession) workTabBar(c ui.C) {
 		}
 
 		// 新建接口按钮。
-		if ui.Button(c, "新建接口").Icon(iconPlus).IconOnly().Ghost().Small().Clicked() {
+		if ui.Button(c, "").Icon(iconPlus).IconOnly().Ghost().Large().Clicked() {
 			s.createNewInterfaceDraft(s.selectedFolderID())
 		}
 
@@ -497,7 +497,7 @@ func (s *projectSession) workTabBar(c ui.C) {
 			ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Width(140).Label("环境")
 		}
 		// 折叠菜单：编辑环境。
-		if ui.Button(c, "环境设置").Icon(iconSettings).IconOnly().Ghost().Small().Clicked() {
+		if ui.Button(c, "").Icon(iconSettings).IconOnly().Ghost().Small().Clicked() {
 			s.openEnvDrawer()
 		}
 	})
@@ -539,10 +539,10 @@ func (s *projectSession) urlBar(c ui.C) {
 		}
 
 		// —— 保存 / 保存为用例 ——
-		if ui.Button(c, "保存").Outline().Clicked() {
+		if ui.Button(c, "保存").Icon(iconSave).Secondary().Clicked() {
 			s.saveCurrent()
 		}
-		if ui.Button(c, "保存为用例").Outline().Clicked() {
+		if ui.Button(c, "保存用例").Secondary().Clicked() {
 			s.saveCaseName = ""
 			s.saveCaseTarget = s.currentInterface()
 			s.saveCaseOpen = true

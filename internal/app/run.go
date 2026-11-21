@@ -70,12 +70,12 @@ func (m *appModel) page(c ui.C) {
 // tabBar 绘制顶部标签栏：主页标签 + 各项目标签（带关闭按钮）。
 func (m *appModel) tabBar(c ui.C) {
 	theme := c.Theme()
-	ui.Row(c).FillWidth().Height(40).Background(theme.Background).PadX(8).Gap(2).Items(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Height(36).Background(theme.Background).PadX(8).Gap(2).Items(ui.Center).Children(func() {
 		// 主页标签：用 Row 包住图标和文字，Hit 作为点击区域，图标与文字垂直居中。
-		home := ui.Row(c).PadX(14).Height(34).Radius(theme.Metrics.RadiusControl).Gap(8).Items(ui.Center).
+		home := ui.Row(c).PadX(12).Height(30).Radius(theme.Metrics.RadiusControl).Gap(8).Items(ui.Center).
 			Hit(ui.ID(c), "主页").Hover(ui.Look{}.Background(theme.Hover)).
 			Children(func() {
-				ui.Icon(c, iconHome).Size(18, 18).Color(theme.Primary)
+				ui.Icon(c, iconHome).Size(16, 16).Color(theme.Primary)
 				ui.Text(c, "主页")
 			})
 		if m.active < 0 {
@@ -87,7 +87,7 @@ func (m *appModel) tabBar(c ui.C) {
 
 		// 各项目标签。
 		for i, s := range m.tabs {
-			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(34).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
+			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
 				Hit(ui.ID(c), "标签 "+s.project.Name).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
 					ui.Text(c, s.project.Name)
@@ -108,7 +108,7 @@ func (m *appModel) tabBar(c ui.C) {
 
 // tabCloseButton 渲染一个灰色、紧凑的标签页关闭按钮（返回可读 Clicked 的 Box）。
 func tabCloseButton(c ui.C, theme gfx.Theme, label string) ui.Box {
-	return ui.Row(c).Size(18, 18).Shrink(0).Center().Radius(theme.Metrics.RadiusControl).
+	return ui.Row(c).Size(18, 18).Shrink(0).Left(15).Radius(theme.Metrics.RadiusControl).
 		Hit(ui.ID(c), "关闭 "+label).
 		Hover(ui.Look{}.Background(theme.Hover)).
 		Children(func() {
