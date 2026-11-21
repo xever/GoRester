@@ -48,11 +48,12 @@ gorester/
 
 ```bash
 ./scripts/package-win.sh  # 打包 Windows x64：exe + 图标，输出 zip
+./scripts/package-mac.sh  # 打包 macOS：.app + 图标（自动用 .icns）
 ```
 
 Windows 目标走 purego（无需 mingw-w64 交叉编译器）。图标和版本信息由 `viva.toml`
-的 `[app] icon` 写入 exe；运行时窗口图标由内嵌的 `resource/icon.ico` 解码提供。
-打包 macOS 时把 `viva.toml` 里的 `icon` 改为 `resource/icon.icns` 即可。
+的 `[app] icon` 写入；运行时窗口图标由内嵌的 `resource/icon.ico` 解码提供。
+两个脚本会自动按平台选用 `resource/icon.ico`（Windows）或 `resource/icon.icns`（macOS）。
 
 ## 测试与检查
 
