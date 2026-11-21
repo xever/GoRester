@@ -1,5 +1,5 @@
 我是go语言开发新手，多加点注释，项目配置了git，注意git规范
-
+使用新手友好的标准go项目目录结构
 **【角色设定与目标】**
 请帮我使用 go+viva 编写一个类似 Postman/Apifox 的 HTTP 接口管理与测试工具，名字叫 GoRester。请基于以下详细的 UI 布局和功能交互需求进行代码生成：
 viva 是跨平台ui，组件和api文档参考 https://vivaui.dev/
