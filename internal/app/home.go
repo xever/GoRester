@@ -46,12 +46,12 @@ func (m *appModel) homePage(c ui.C) {
 					meta := m.projects[i]
 					card := ui.Column(c).Size(homeCardWidth, homeCardHeight).
 						Radius(theme.Metrics.RadiusSurface).
-						Background(theme.Card).
+						Background(theme.Card).Border(0.5, theme.Ring).Shadow(gfx.ShadowMD).
 						Hit(ui.ID(c), "项目 "+meta.Name).
 						Hover(ui.Look{}.Opacity(0.85)).Transition().
 						Pad(16).Gap(6).
 						Children(func() {
-							ui.Text(c, meta.Name).Weight(gfx.WeightMedium)
+							ui.Text(c, meta.Name).Weight(gfx.WeightMedium).Center()
 							ui.Text(c, meta.Description).Muted().MaxLines(3)
 						})
 					if card.Clicked() {
@@ -66,8 +66,8 @@ func (m *appModel) homePage(c ui.C) {
 	ui.Modal(c, &m.newProjectOpen, "新建项目",
 		func() {
 			ui.Column(c).Gap(12).Children(func() {
-				ui.TextField(c, &m.newName, "项目名称", "例如：用户中心").FillWidth()
-				ui.TextField(c, &m.newDesc, "项目说明", "一句话描述这个项目").FillWidth()
+				ui.TextField(c, &m.newName, "项目名称", "例如：图书商城").FillWidth()
+				ui.TextArea(c, &m.newDesc, "项目说明", "描述这个项目").FillWidth().AutoGrow(5)
 			})
 		},
 		func() {
