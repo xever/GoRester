@@ -754,11 +754,11 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme g
 		row.Element.PadX(12).PadY(1)
 		ui.Row(row.C).Gap(16).Items(ui.Start).Children(func() {
 			// 行号。
-			ui.Text(row.C, fmt.Sprintf("%d", row.Index+1)).Color(theme.MutedForeground).Mono().FontSize(12).Width(40).TextEnd()
+			ui.Text(row.C, fmt.Sprintf("%d", row.Index+1)).Color(theme.MutedForeground).Mono().FontSize(14).Width(40).TextEnd()
 			// 内容片段。
 			ui.Row(row.C).Children(func() {
 				for _, seg := range line.Segs {
-					ui.Text(row.C, seg.Text).Color(seg.Color).Mono().FontSize(12)
+					ui.Text(row.C, seg.Text).Color(seg.Color).Mono().FontSize(14)
 				}
 			})
 		})
