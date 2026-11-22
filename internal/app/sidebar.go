@@ -124,16 +124,15 @@ func (s *projectSession) contentAt(i int) {
 			ui.Icon(c, iconFolder).Color(theme.MutedForeground)
 			ui.Text(c, e.name).Weight(gfx.WeightMedium)
 		case nodeInterface:
-			// 无用例的接口没有展开箭头（树不会给它画 chevron），内容会比有用例的
-			// 接口靠左 24px。这里补一个空白占位，让方法徽标与有用例的接口对齐。
-			// 24px 箭头宽度 - 8px 行内间距 = 16px 占位。
+			// 无用例的接口没有展开箭头，内容会比有用例的偏左
+			// 这里补一个空白占位，让方法徽标与有用例的接口对齐。
 			if len(e.iface.Cases) == 0 {
-				ui.Spacer(c).Width(16)
+				ui.Icon(c, iconMore).Color(theme.Muted)
 			}
 			methodBadge(c, e.method)
 			ui.Text(c, e.name)
 		case nodeCase:
-			ui.Icon(c, iconBookmark).Color(theme.MutedForeground)
+			ui.Icon(c, iconBookmark).Color(theme.MutedForeground).MarginLeft(10)
 			ui.Text(c, e.name).Muted()
 		}
 	})
