@@ -696,6 +696,7 @@ func (s *projectSession) responsePanel(c ui.C) {
 		// 搜索栏。
 		if s.respFindOpen {
 			ui.Row(c).PadX(12).Gap(8).Items(ui.Center).Children(func() {
+				ui.Spacer(c)
 				ui.TextField(c, &s.respSearch, "查找", "输入关键字").Width(200)
 				if ui.Button(c, "查找下一个").Ghost().Small().Clicked() {
 					s.findNext()
