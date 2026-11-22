@@ -7,6 +7,7 @@ package app
 // 「添加一行」/「删除」就地修改切片。表头与列宽用固定宽度对齐。
 
 import (
+	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/ui"
 
 	"gorester/internal/model"
@@ -73,7 +74,17 @@ func kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
 			ui.Select(c, &kv.Type, formFieldTypes, identityLabel).Width(kvTypeWidth).Label("类型")
 		}
 		// 值 / 示例值。
-		ui.TextField(c, &kv.Value, cols.valueLabel, "value").Width(kvValueWidth)
+		valueField := ui.TextField(c, &kv.Value, cols.valueLabel, "value").Width(kvValueWidth)
+		// form-data 类型为 file 时，右侧加一个文件选择图标；点击弹出系统文件选择框，
+		// 选中后把文件路径写回值字段（发送请求时按文件路径上传）。
+		if cols.withType && kv.Type == "file" {
+			valueField.Action(iconFolder, "选择文件")
+			if valueField.ActionClicked() {
+				if path, ok := pickFilePath(); ok {
+					kv.Value = path
+				}
+			}
+		}
 		// 说明。
 		ui.TextField(c, &kv.Desc, "说明", "").Width(kvDescWidth)
 		// 必填（body 表单）—— 用一个带星号的复选框表示。
@@ -86,4 +97,16 @@ func kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
 		}
 	})
 	return deleted
+}
+
+// pickFilePath 弹出系统文件选择框，返回选中的文件路径；取消或失败返回 (空, false)。
+func pickFilePath() (string, bool) {
+	paths, err := vivaapp.OpenFiles(vivaapp.OpenFileOptions{
+		Title:         "选择文件",
+		AllowMultiple: false,
+	})
+	if err != nil || len(paths) == 0 {
+		return "", false
+	}
+	return paths[0], true
 }
