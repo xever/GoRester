@@ -763,11 +763,13 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme g
 						ui.Text(row.C, seg.Text).Color(seg.Color).Mono().FontSize(14)
 						continue
 					}
-					// 有搜索词时，把片段按命中位置拆开，命中的部分加灰色底色。
+					// 有搜索词时，把片段按命中位置拆开，命中的部分加浅黄色底色、
+					// 文字改用深色以保证在浅黄底上清晰可读。
 					for _, part := range splitSearch(seg.Text, needle) {
-						t := ui.Text(row.C, part.text).Color(seg.Color).Mono().FontSize(14)
 						if part.matched {
-							t.Background(theme.Muted)
+							ui.Text(row.C, part.text).Color(gfx.RGB(25, 25, 25)).Background(gfx.RGB(255, 235, 120)).Mono().FontSize(14)
+						} else {
+							ui.Text(row.C, part.text).Color(seg.Color).Mono().FontSize(14)
 						}
 					}
 				}
