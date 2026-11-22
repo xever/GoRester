@@ -630,11 +630,11 @@ func (s *projectSession) bodyCodeEditor(c ui.C, body *model.Body) {
 				body.Raw = formatted
 				s.replaceEditorText(formatted)
 			}
-			if ui.Button(c, "压缩").Ghost().Small().Clicked() {
-				compressed := minifyBody(s.bodyEditor.String(), body.Mode)
-				body.Raw = compressed
-				s.replaceEditorText(compressed)
-			}
+			// if ui.Button(c, "压缩").Ghost().Small().Clicked() {
+			// 	compressed := minifyBody(s.bodyEditor.String(), body.Mode)
+			// 	body.Raw = compressed
+			// 	s.replaceEditorText(compressed)
+			// }
 		})
 		// 代码编辑器撑满剩余高度，内容超出时内部滚动。
 		codeeditor.View(c, "请求体内容", &s.bodyCode).Fill()

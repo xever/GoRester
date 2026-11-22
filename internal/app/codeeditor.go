@@ -70,7 +70,7 @@ func (s *projectSession) bodyEditorKey(event gfx.KeyEvent) gfx.EventResult {
 func (s *projectSession) bodyEditorText(context window.TextInputContext) *window.TextInput {
 	return &window.TextInput{
 		Editor: s.bodyEditor,
-		Color:  gfx.Color{Alpha: 0}, // 全透明：只输入、不绘制
+		Color:  gfx.Color{Red: 255, Green: 255, Blue: 255, Alpha: 0}, // 全透明：只输入、不绘制
 	}
 }
 
