@@ -117,9 +117,9 @@ type jsonColors struct {
 
 // tokenize 把 JSON 文本切成着色片段（整体一个平坦列表）。
 func (jc jsonColors) tokenize(s string) []Seg {
-	key := jc.theme.Accent
+	key := gfx.RGB(110, 168, 255) // 键名：淡蓝色（theme.Accent 是灰色，深色主题下看不清）
 	str := jc.theme.Success
-	num := jc.theme.Primary
+	num := gfx.RGB(255, 166, 87)     // 数字：橙色（与键名的蓝色区分）
 	keyword := gfx.RGB(168, 85, 247) // 紫
 	punct := jc.theme.MutedForeground
 

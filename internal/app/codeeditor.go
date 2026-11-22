@@ -74,6 +74,34 @@ func (s *projectSession) bodyEditorText(context window.TextInputContext) *window
 	}
 }
 
+// bodyEditorPointer 处理代码编辑器上的点击：把光标定位到点击位置的字符。
+// 单击定位光标（按住 Shift 扩展选区）、双击选词、三击选整行。
+func (s *projectSession) bodyEditorPointer(event gfx.PointerEvent) gfx.EventResult {
+	if event.Kind != gfx.PointerDown || event.Button != gfx.PointerButtonPrimary {
+		return gfx.EventResult{}
+	}
+	offset, ok := s.bodyCode.Code.OffsetAt(gfx.Point{X: event.X, Y: event.Y})
+	if !ok {
+		return gfx.EventResult{}
+	}
+	value := s.bodyEditor.String()
+	if offset > len(value) {
+		offset = len(value)
+	}
+	runeIndex := utf8.RuneCountInString(value[:offset])
+
+	switch event.ClickCount {
+	case 2: // 双击：选中整个单词
+		s.bodyEditor.SetSelection(text.WordRange(value, runeIndex))
+	case 3: // 三击：选中整行
+		s.bodyEditor.SetSelection(text.LineRange(value, runeIndex))
+	default:
+		extend := event.Modifiers&gfx.ModifierShift != 0
+		s.bodyEditor.MoveTo(runeIndex, extend)
+	}
+	return gfx.EventResult{Handled: true, Repaint: true}
+}
+
 // ---------------------------------------------------------------------------
 // 语法高亮
 // ---------------------------------------------------------------------------

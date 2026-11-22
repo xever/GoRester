@@ -203,6 +203,7 @@ func newProjectSession(a *appModel, p *model.Project) *projectSession {
 	s.bodyEditor = text.NewEditor("")
 	s.bodyCode.Document = s.bodyEditor
 	s.bodyCode.Key = s.bodyEditorKey
+	s.bodyCode.Pointer = s.bodyEditorPointer
 	s.bodyCode.Text = s.bodyEditorText
 	s.bodyCode.Snapshot.LineNumbers = true
 	s.bodyCode.Snapshot.Wrap = true

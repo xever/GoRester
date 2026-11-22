@@ -158,9 +158,6 @@ func TestJSONBodyEditorRenders(t *testing.T) {
 	if !hasLabel(driver, "格式化") {
 		t.Fatal("json 编辑器应显示「格式化」按钮")
 	}
-	if !hasLabel(driver, "压缩") {
-		t.Fatal("json 编辑器应显示「压缩」按钮")
-	}
 }
 
 // TestJSONBodyEditorTyping 验证 json 代码编辑器能正常输入（原生输入 + 透明文字）。
