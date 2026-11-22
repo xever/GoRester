@@ -189,3 +189,21 @@ func TestJSONBodyEditorTyping(t *testing.T) {
 		t.Fatalf("输入未生效：before=%q after=%q", before, after)
 	}
 }
+
+// TestSplitSearch 验证搜索拆分：按关键字（大小写不敏感）把文本拆成命中/未命中片段。
+func TestSplitSearch(t *testing.T) {
+	parts := splitSearch(`{"Name":"admin","name":"root"}`, "name")
+	// 应有两处命中："Name" 和 "name"。
+	matched := 0
+	for _, p := range parts {
+		if p.matched {
+			matched++
+			if !strings.EqualFold(p.text, "name") {
+				t.Fatalf("命中片段应为 name，实际 %q", p.text)
+			}
+		}
+	}
+	if matched != 2 {
+		t.Fatalf("应有两处命中，实际 %d", matched)
+	}
+}

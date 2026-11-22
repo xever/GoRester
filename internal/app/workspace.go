@@ -749,6 +749,7 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme g
 		ui.Text(c, "(空响应体)").Muted().Pad(12)
 		return
 	}
+	needle := s.respSearch
 	ui.List(c, &s.respList, len(lines), func(row ui.ListRow) {
 		line := lines[row.Index]
 		row.Element.PadX(12).PadY(1)
@@ -758,11 +759,57 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme g
 			// 内容片段。
 			ui.Row(row.C).Children(func() {
 				for _, seg := range line.Segs {
-					ui.Text(row.C, seg.Text).Color(seg.Color).Mono().FontSize(14)
+					if needle == "" {
+						ui.Text(row.C, seg.Text).Color(seg.Color).Mono().FontSize(14)
+						continue
+					}
+					// 有搜索词时，把片段按命中位置拆开，命中的部分加灰色底色。
+					for _, part := range splitSearch(seg.Text, needle) {
+						t := ui.Text(row.C, part.text).Color(seg.Color).Mono().FontSize(14)
+						if part.matched {
+							t.Background(theme.Muted)
+						}
+					}
 				}
 			})
 		})
 	}).Grow(1)
+}
+
+// searchPart 是响应内容里被搜索拆出的一段：text 为文本，matched 表示是否命中关键字。
+type searchPart struct {
+	text    string
+	matched bool
+}
+
+// splitSearch 把 text 按 needle（大小写不敏感）拆成命中/未命中的片段。
+func splitSearch(text, needle string) []searchPart {
+	if needle == "" {
+		return []searchPart{{text: text}}
+	}
+	lower := strings.ToLower(text)
+	lowerNeedle := strings.ToLower(needle)
+	var parts []searchPart
+	start := 0
+	for start <= len(text) {
+		rel := strings.Index(lower[start:], lowerNeedle)
+		if rel < 0 {
+			if start < len(text) {
+				parts = append(parts, searchPart{text: text[start:]})
+			}
+			break
+		}
+		idx := start + rel
+		if idx > start {
+			parts = append(parts, searchPart{text: text[start:idx]})
+		}
+		parts = append(parts, searchPart{text: text[idx : idx+len(needle)], matched: true})
+		start = idx + len(needle)
+	}
+	if len(parts) == 0 {
+		return []searchPart{{text: text}}
+	}
+	return parts
 }
 
 // responseKVs 渲染响应 Header / Cookie 键值对（只读展示）。
