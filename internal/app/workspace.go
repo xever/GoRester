@@ -830,7 +830,8 @@ func (s *projectSession) requestView(c ui.C, theme gfx.Theme) {
 			})
 		}
 		if s.lastReq.Body != "" {
-			ui.Text(c, s.lastReq.Body).Mono().FontSize(12)
+			ui.TextArea(c, &s.lastReq.Body, "", "").
+				Mono().FontSize(14).ReadOnly(true).FillWidth().AutoGrow(5)
 		}
 	})
 }
