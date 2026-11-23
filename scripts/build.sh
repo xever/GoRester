@@ -13,6 +13,9 @@ cd "$(dirname "$0")/.."
 # 创建成品目录（若不存在）。
 mkdir -p dist
 
+# 同步版本号：设置抽屉里显示的版本来自 viva.toml。
+./scripts/sync-version.sh
+
 # 编译 cmd/gorester 入口，输出到 dist/gorester。
 # -trimpath 让二进制里的路径更干净，-ldflags "-s -w" 去掉调试信息减小体积。
 go build -trimpath -ldflags "-s -w" -o dist/gorester ./cmd/gorester

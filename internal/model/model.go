@@ -3,7 +3,11 @@
 // 结构体字段后面的 `json:"..."` 标签，决定了保存成 JSON 文件时的字段名。
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorester/internal/i18n"
+)
 
 // ---------------------------------------------------------------------------
 // HTTP 方法
@@ -173,7 +177,7 @@ func NewProject(name, description string) *Project {
 		Description: description,
 		Environments: []*Environment{
 			{
-				Name:      "开发环境",
+				Name:      i18n.T("model.devEnv"),
 				BaseURL:   "",
 				Vars:      map[string]string{},
 				Headers:   map[string]string{},

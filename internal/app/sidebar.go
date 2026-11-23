@@ -6,6 +6,8 @@ package app
 import (
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
+
+	"gorester/internal/i18n"
 )
 
 // methodBadge 渲染一个带字母的方法徽标（圆形小方块），颜色随方法变化。
@@ -24,19 +26,19 @@ func methodBadge(c ui.C, method string) {
 func (s *projectSession) sidebar(c ui.C) {
 	// —— 顶部：搜索 + 过滤 ——
 	ui.Row(c).Pad(12).PadBottom(8).Gap(8).Items(ui.Center).Children(func() {
-		search := ui.TextField(c, &s.sidebarSearch, "搜索", "搜索接口").Icon(iconSearch).Grow(1)
+		search := ui.TextField(c, &s.sidebarSearch, i18n.T("common.search"), i18n.T("sidebar.searchPlaceholder")).Icon(iconSearch).Grow(1)
 		if search.Changed() {
 			s.markTreeDirty()
 		}
 
 		// 过滤按钮（漏斗）：按方法过滤。
-		filterBtn := ui.Button(c, "过滤").Icon(iconFilter).IconOnly().Ghost()
+		filterBtn := ui.Button(c, i18n.T("common.filter")).Icon(iconFilter).IconOnly().Ghost()
 		if filterBtn.Clicked() {
 			s.filterMenuOpen = !s.filterMenuOpen
 		}
 		ui.Menu(c, filterBtn, &s.filterMenuOpen, func(menu *ui.MenuItems) {
 			for i, method := range filterMethods {
-				if menu.Item(filterMethodNames[i]).Clicked() {
+				if menu.Item(filterMethodLabel(i)).Clicked() {
 					s.sidebarFilter = method
 					s.markTreeDirty()
 				}
@@ -48,26 +50,26 @@ func (s *projectSession) sidebar(c ui.C) {
 	ui.Row(c).PadX(12).PadBottom(8).Gap(8).Items(ui.Center).Children(func() {
 
 		// 导入 / 导出 OpenAPI。
-		if ui.Button(c, "").Icon(iconDownload).Ghost().Tooltip("导入OpenAPI").Small().Clicked() {
+		if ui.Button(c, "").Icon(iconDownload).Ghost().Tooltip(i18n.T("sidebar.importOpenAPI")).Small().Clicked() {
 			s.app.post(s.importOpenAPI)
 		}
-		if ui.Button(c, "").Icon(iconUpload).Ghost().Tooltip("导出").Small().Clicked() {
+		if ui.Button(c, "").Icon(iconUpload).Ghost().Tooltip(i18n.T("sidebar.export")).Small().Clicked() {
 			s.app.post(s.exportOpenAPI)
 		}
 
 		ui.Spacer(c).Grow(1)
 
-		newBtn := ui.Button(c, "新建").Icon(iconPlus)
+		newBtn := ui.Button(c, i18n.T("common.new")).Icon(iconPlus)
 		if newBtn.Clicked() {
 			s.newMenuOpen = !s.newMenuOpen
 		}
 		ui.Menu(c, newBtn, &s.newMenuOpen, func(menu *ui.MenuItems) {
-			if menu.Item("新建文件夹").Clicked() {
+			if menu.Item(i18n.T("sidebar.newFolder")).Clicked() {
 				s.newFolderName = ""
 				s.newFolderParent = s.selectedFolderID()
 				s.newFolderOpen = true
 			}
-			if menu.Item("新建接口").Clicked() {
+			if menu.Item(i18n.T("sidebar.newInterface")).Clicked() {
 				s.createNewInterfaceDraft(s.selectedFolderID())
 			}
 		})
@@ -82,13 +84,13 @@ func (s *projectSession) sidebar(c ui.C) {
 	}
 	if len(s.flat) == 0 {
 		ui.Column(c).Grow(1).Items(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Text(c, "还没有接口").Muted()
-			ui.Text(c, "点击上方「新建」创建接口或文件夹").Muted().Small()
+			ui.Text(c, i18n.T("sidebar.empty")).Muted()
+			ui.Text(c, i18n.T("sidebar.emptyHint")).Muted().Small()
 		})
 		return
 	}
 
-	ui.Tree(c, &s.tree, len(s.flat), s.labelFn, s.contentFn).Grow(1).Label("接口目录")
+	ui.Tree(c, &s.tree, len(s.flat), s.labelFn, s.contentFn).Grow(1).Label(i18n.T("sidebar.tree"))
 
 	// 处理展开 / 收起。
 	if i, ok := s.tree.Toggled(); ok && i < len(s.flat) {
@@ -141,28 +143,28 @@ func (s *projectSession) contentAt(i int) {
 	ui.ContextMenu(c, row, func(menu *ui.MenuItems) {
 		switch e.kind {
 		case nodeFolder:
-			if menu.Item("新建接口").Clicked() {
+			if menu.Item(i18n.T("sidebar.newInterface")).Clicked() {
 				s.createNewInterfaceDraft(e.id)
 			}
-			if menu.Item("新建文件夹").Clicked() {
+			if menu.Item(i18n.T("sidebar.newFolder")).Clicked() {
 				s.newFolderName = ""
 				s.newFolderParent = e.id
 				s.newFolderOpen = true
 			}
-			if menu.Item("删除文件夹").Clicked() {
+			if menu.Item(i18n.T("sidebar.deleteFolder")).Clicked() {
 				s.deleteFolder(e.folder)
 			}
 		case nodeInterface:
-			if menu.Item("删除接口").Clicked() {
+			if menu.Item(i18n.T("sidebar.deleteInterface")).Clicked() {
 				s.deleteInterface(e.iface)
 			}
-			if menu.Item("另存为用例").Clicked() {
+			if menu.Item(i18n.T("sidebar.saveAsCase")).Clicked() {
 				s.saveCaseName = ""
 				s.saveCaseTarget = e.iface
 				s.saveCaseOpen = true
 			}
 		case nodeCase:
-			if menu.Item("删除用例").Clicked() {
+			if menu.Item(i18n.T("sidebar.deleteCase")).Clicked() {
 				s.deleteCase(e.iface, e.case_)
 			}
 		}

@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -306,7 +307,7 @@ func (c *Client) buildRequest(opts RequestOptions) (*http.Request, error) {
 	// 组装查询参数。
 	u, err := url.Parse(fullURL)
 	if err != nil {
-		return nil, fmt.Errorf("URL 解析失败: %w", err)
+		return nil, fmt.Errorf(i18n.T("error.parseURL"), err)
 	}
 	q := u.Query()
 	for _, p := range opts.Params {
@@ -325,7 +326,7 @@ func (c *Client) buildRequest(opts RequestOptions) (*http.Request, error) {
 
 	req, err := http.NewRequest(string(opts.Method), u.String(), bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
+		return nil, fmt.Errorf(i18n.T("error.createRequest"), err)
 	}
 
 	// 设置请求头。
@@ -423,7 +424,7 @@ func buildFormData(items []model.KeyValue, subst func(string) string) (io.Reader
 			path := subst(kv.Value)
 			f, err := os.Open(path)
 			if err != nil {
-				return nil, "", fmt.Errorf("打开上传文件失败 %s: %w", path, err)
+				return nil, "", fmt.Errorf(i18n.T("error.openUpload"), path, err)
 			}
 			part, err := w.CreateFormFile(key, filepath.Base(path))
 			if err != nil {

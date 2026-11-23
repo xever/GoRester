@@ -14,6 +14,7 @@ import (
 	"github.com/vivaui/viva/ui"
 
 	"gorester/internal/highlight"
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 	"gorester/internal/openapi"
 	"gorester/internal/storage"
@@ -24,7 +25,7 @@ var (
 
 	// todo 标签bodyFormatLabels改名x-www为简写，小心后面格式出错
 	reqTabNames      = []string{"Params", "Body", "Cookie", "Header", "Auth"}
-	respTabNames     = []string{"Body", "Cookie", "Header", "请求"}
+	respTabNames     = []string{"Body", "Cookie", "Header"}
 	bodyFormatLabels = []string{"none", "form-data", "form-urlencoded", "json", "xml", "raw"}
 	bodyFormatModes  = []string{"none", "form-data", "x-www-form-urlencoded", "json", "xml", "raw"}
 	methodStrings    = []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
@@ -38,20 +39,41 @@ var (
 
 	// 下拉框选项。
 	prettyOptions     = []string{"Pretty", "Raw"}
-	langOptions       = []string{"JSON", "XML", "文本"}
+	langOptions       = []string{"JSON", "XML", "text"}
 	encodingOptions   = []string{"utf-8", "GBK"}
 	apiKeyInOptions   = []string{"header", "query"}
 	formFieldTypes    = []string{"text", "file", "string", "number"}
 	filterMethods     = []string{"", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
-	filterMethodNames = []string{"全部方法", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+	filterMethodNames = []string{"", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
 )
 
 // 这些是给 Select / Tabs 用的标签函数，提为包级函数避免每次 paint 分配闭包。
-func reqTabLabel(i int) string      { return reqTabNames[i] }
-func bodyFormatLabel(i int) string  { return bodyFormatLabels[i] }
-func respTabLabel(i int) string     { return respTabNames[i] }
+func reqTabLabel(i int) string     { return reqTabNames[i] }
+func bodyFormatLabel(i int) string { return bodyFormatLabels[i] }
+func respTabLabel(i int) string {
+	if i == 3 {
+		return i18n.T("workspace.requestTab")
+	}
+	return respTabNames[i]
+}
 func prettyLabel(i int) string      { return prettyOptions[i] }
 func identityLabel(s string) string { return s }
+
+// filterMethodLabel 把空过滤值显示为当前语言的「全部方法 / All Methods」。
+func filterMethodLabel(i int) string {
+	if i == 0 {
+		return i18n.T("workspace.filterAll")
+	}
+	return filterMethodNames[i]
+}
+
+// langLabel 把内部的 "text" 选项显示为当前语言的「文本 / Text」。
+func langLabel(s string) string {
+	if s == "text" {
+		return i18n.T("workspace.langText")
+	}
+	return s
+}
 
 // ---------------------------------------------------------------------------
 // 项目页面（左右分栏）
@@ -81,7 +103,7 @@ func (s *projectSession) page(c ui.C) {
 			s.sidebar(c)
 		})
 		// —— 分隔条 ——
-		ui.Splitter(c, &s.split).Mins(200, 420).Label("调整侧栏宽度")
+		ui.Splitter(c, &s.split).Mins(200, 420).Label(i18n.T("workspace.adjustSidebar"))
 		// —— 右侧主工作区 ——
 		ui.Column(c).Grow(1).Children(func() {
 			s.workspace(c)
@@ -119,7 +141,7 @@ func (s *projectSession) openInterfaceTab(iface *model.Interface, isNew bool) {
 	}
 	name := iface.Name
 	if name == "" {
-		name = "新接口"
+		name = i18n.T("workspace.newInterface")
 	}
 	s.workTabs = append(s.workTabs, &workTab{kind: tabInterface, id: iface.ID, name: name, isNew: isNew, iface: iface})
 	s.activeWork = len(s.workTabs) - 1
@@ -198,7 +220,7 @@ func hasKV(kvs []model.KeyValue) bool {
 func (s *projectSession) createNewInterfaceDraft(parentID string) {
 	iface := &model.Interface{
 		ID:      model.NewID(),
-		Name:    "新接口",
+		Name:    i18n.T("workspace.newInterface"),
 		Method:  "GET",
 		Params:  []model.KeyValue{},
 		Headers: []model.KeyValue{{Enabled: true}},
@@ -216,7 +238,7 @@ func (s *projectSession) closeWorkTab(i int) {
 	s.workTabs = append(s.workTabs[:i], s.workTabs[i+1:]...)
 	if len(s.workTabs) == 0 {
 		// 至少保留一个「项目概览」。
-		s.workTabs = append(s.workTabs, &workTab{kind: tabOverview, name: "项目概览"})
+		s.workTabs = append(s.workTabs, &workTab{kind: tabOverview, name: i18n.T("workspace.overview")})
 		s.activeWork = 0
 		return
 	}
@@ -295,7 +317,7 @@ func (s *projectSession) afterDeleteInterface(iface *model.Interface) {
 		}
 	}
 	if len(s.workTabs) == 0 {
-		s.workTabs = append(s.workTabs, &workTab{kind: tabOverview, name: "项目概览"})
+		s.workTabs = append(s.workTabs, &workTab{kind: tabOverview, name: i18n.T("workspace.overview")})
 		s.activeWork = 0
 	} else if s.activeWork >= len(s.workTabs) {
 		s.activeWork = len(s.workTabs) - 1
@@ -324,10 +346,10 @@ func (s *projectSession) persist() {
 	// 保存前先把代码编辑器里未落盘的编辑写回请求体。
 	s.flushBodyEditor()
 	if err := storage.SaveProject(s.project); err != nil {
-		s.app.toaster.Show("保存失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.saveFailed"), err.Error(), ui.ToastError)
 		return
 	}
-	s.app.toaster.Show("已保存", s.project.Name, ui.ToastSuccess)
+	s.app.toaster.Show(i18n.T("toast.saved"), s.project.Name, ui.ToastSuccess)
 }
 
 // ---------------------------------------------------------------------------
@@ -340,51 +362,51 @@ func (s *projectSession) exportOpenAPI() {
 	doc := openapi.Export(s.project)
 	data, err := doc.Marshal()
 	if err != nil {
-		s.app.toaster.Show("导出失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.exportFailed"), err.Error(), ui.ToastError)
 		return
 	}
 	path, err := vivaapp.SaveFile(vivaapp.SaveFileOptions{
-		Title:            "导出 OpenAPI",
+		Title:            i18n.T("workspace.exportOpenAPI"),
 		SuggestedName:    s.project.Name + ".openapi.json",
 		DefaultExtension: "json",
-		Filters:          []vivaapp.FileFilter{{Name: "OpenAPI JSON", Pattern: "*.json"}},
+		Filters:          []vivaapp.FileFilter{{Name: i18n.T("workspace.openAPIJSON"), Pattern: "*.json"}},
 	})
 	if err != nil {
-		s.app.toaster.Show("导出取消", err.Error(), ui.ToastInfo)
+		s.app.toaster.Show(i18n.T("toast.exportCancelled"), err.Error(), ui.ToastInfo)
 		return
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		s.app.toaster.Show("导出失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.exportFailed"), err.Error(), ui.ToastError)
 		return
 	}
-	s.app.toaster.Show("导出成功", path, ui.ToastSuccess)
+	s.app.toaster.Show(i18n.T("toast.exportSuccess"), path, ui.ToastSuccess)
 }
 
 // importOpenAPI 从文件导入 OpenAPI 3.0 到项目。
 func (s *projectSession) importOpenAPI() {
 	defer s.app.invalidate() // 导入后重绘，刷新目录树并显示 toast
 	paths, err := vivaapp.OpenFiles(vivaapp.OpenFileOptions{
-		Title:         "导入 OpenAPI",
+		Title:         i18n.T("workspace.importOpenAPI"),
 		AllowMultiple: false,
-		Filters:       []vivaapp.FileFilter{{Name: "OpenAPI JSON", Pattern: "*.json"}},
+		Filters:       []vivaapp.FileFilter{{Name: i18n.T("workspace.openAPIJSON"), Pattern: "*.json"}},
 	})
 	if err != nil || len(paths) == 0 {
 		return
 	}
 	data, err := os.ReadFile(paths[0])
 	if err != nil {
-		s.app.toaster.Show("导入失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.importFailed"), err.Error(), ui.ToastError)
 		return
 	}
 	doc, err := openapi.Parse(data)
 	if err != nil {
-		s.app.toaster.Show("导入失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.importFailed"), err.Error(), ui.ToastError)
 		return
 	}
 	openapi.Import(s.project, doc, doc.Info.Title)
 	s.markTreeDirty()
 	s.persist()
-	s.app.toaster.Show("导入成功", doc.Info.Title, ui.ToastSuccess)
+	s.app.toaster.Show(i18n.T("toast.importSuccess"), doc.Info.Title, ui.ToastSuccess)
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +419,7 @@ func (s *projectSession) doSend() {
 	s.flushBodyEditor()
 	opts := s.buildOptions()
 	if opts.Method == "" {
-		s.app.toaster.Show("无法发送", "请先选择 HTTP 方法", ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.cannotSend"), i18n.T("toast.selectMethod"), ui.ToastError)
 		return
 	}
 	// 记录本次实际发送的请求（用于「请求」标签展示）。
@@ -448,7 +470,7 @@ func (s *projectSession) workspace(c ui.C) {
 			ui.Column(c).Height(s.vsplit.Pos).Children(func() {
 				s.requestConfig(c)
 			})
-			ui.Splitter(c, &s.vsplit).Mins(120, 160).Label("调整上下比例")
+			ui.Splitter(c, &s.vsplit).Mins(120, 160).Label(i18n.T("workspace.adjustSplit"))
 			ui.Column(c).Grow(1).Children(func() {
 				s.responsePanel(c)
 			})
@@ -475,10 +497,10 @@ func (s *projectSession) overview(c ui.C) {
 				ui.Text(c, p.Description).Muted()
 			}
 			ui.Divider(c)
-			ui.Text(c, fmt.Sprintf("接口数量：%d", len(ifaces))).Muted()
-			ui.Text(c, fmt.Sprintf("文件夹数量：%d", countFolders(p.Folders))).Muted()
-			ui.Text(c, fmt.Sprintf("用例数量：%d", caseCount)).Muted()
-			ui.Text(c, fmt.Sprintf("环境数量：%d", len(p.Environments))).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.statInterfaces"), len(ifaces))).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.statFolders"), countFolders(p.Folders))).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.statCases"), caseCount)).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.statEnvs"), len(p.Environments))).Muted()
 		})
 	})
 }
@@ -498,21 +520,21 @@ func (s *projectSession) statusBar(c ui.C) {
 	ui.Row(c).FillWidth().PadX(12).PadY(4).Gap(12).Background(theme.Card).Items(ui.Center).Children(func() {
 		if s.sending {
 			ui.Spinner(c)
-			ui.Text(c, "请求中…").Muted()
+			ui.Text(c, i18n.T("workspace.sending")).Muted()
 		} else if s.response != nil {
 			statusColor := gfx.RGB(34, 197, 94)
 			if s.response.StatusCode >= 400 {
 				statusColor = gfx.RGB(239, 68, 68)
 			}
-			ui.Text(c, fmt.Sprintf("状态: %d %s", s.response.StatusCode, httpStatusText(s.response.StatusCode))).Color(statusColor).Weight(gfx.WeightMedium)
-			ui.Text(c, fmt.Sprintf("耗时: %s", s.response.Elapsed.Round(time.Millisecond))).Muted()
-			ui.Text(c, fmt.Sprintf("大小: %s", humanBytes(len(s.response.Body)))).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.status"), s.response.StatusCode, httpStatusText(s.response.StatusCode))).Color(statusColor).Weight(gfx.WeightMedium)
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.duration"), s.response.Elapsed.Round(time.Millisecond))).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.size"), humanBytes(len(s.response.Body)))).Muted()
 		} else {
-			ui.Text(c, "尚未发送请求").Muted()
+			ui.Text(c, i18n.T("workspace.notSent")).Muted()
 		}
 		ui.Spacer(c).Grow(1)
 		if env := s.currentEnv(); env != nil {
-			ui.Text(c, "环境: "+env.Name).Muted()
+			ui.Text(c, fmt.Sprintf(i18n.T("workspace.envStatus"), env.Name)).Muted()
 		}
 	})
 }
@@ -524,17 +546,18 @@ func (s *projectSession) workTabBar(c ui.C) {
 		// 各标签页。
 		for i, t := range s.workTabs {
 			active := s.activeWork == i
+			name := t.displayName()
 			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
-				Hit(ui.ID(c), "工作区标签 "+t.name).Hover(ui.Look{}.Background(theme.Hover)).
+				Hit(ui.ID(c), fmt.Sprintf(i18n.T("common.workspaceTab"), name)).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
 					if active {
-						ui.Text(c, t.name).Color(theme.SelectionForeground)
+						ui.Text(c, name).Color(theme.SelectionForeground)
 					} else {
-						ui.Text(c, t.name)
+						ui.Text(c, name)
 					}
 					// 概览标签不可关闭，接口 / 用例标签可关闭。
 					if t.kind != tabOverview {
-						if tabCloseButton(c, *theme, t.name, active).Clicked() {
+						if tabCloseButton(c, *theme, name, active).Clicked() {
 							s.closeWorkTab(i)
 						}
 					}
@@ -556,7 +579,7 @@ func (s *projectSession) workTabBar(c ui.C) {
 
 		// 环境选择下拉框。
 		if len(s.project.Environments) > 0 {
-			ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Width(140).Label("环境")
+			ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Width(140).Label(i18n.T("workspace.envSelect"))
 		}
 		// 折叠菜单：编辑环境。
 		if ui.Button(c, "").Icon(iconSettings).IconOnly().Ghost().Small().Clicked() {

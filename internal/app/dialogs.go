@@ -12,6 +12,7 @@ import (
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
 
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -28,15 +29,15 @@ func (s *projectSession) dialogs(c ui.C) {
 // ---------------------------------------------------------------------------
 
 func (s *projectSession) newFolderModal(c ui.C) {
-	ui.Modal(c, &s.newFolderOpen, "新建文件夹",
+	ui.Modal(c, &s.newFolderOpen, i18n.T("dialog.newFolder"),
 		func() {
-			ui.TextField(c, &s.newFolderName, "文件夹名称", "例如：用户模块").FillWidth()
+			ui.TextField(c, &s.newFolderName, i18n.T("dialog.folderName"), i18n.T("dialog.folderNamePlaceholder")).FillWidth()
 		},
 		func() {
-			if ui.Button(c, "取消").Outline().Clicked() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
 				s.newFolderOpen = false
 			}
-			if ui.Button(c, "创建").Clicked() {
+			if ui.Button(c, i18n.T("common.create")).Clicked() {
 				if strings.TrimSpace(s.newFolderName) == "" {
 					return
 				}
@@ -60,18 +61,18 @@ func (s *projectSession) newFolderModal(c ui.C) {
 // ---------------------------------------------------------------------------
 
 func (s *projectSession) saveDialog(c ui.C) {
-	ui.Modal(c, &s.saveDialogOpen, "保存接口",
+	ui.Modal(c, &s.saveDialogOpen, i18n.T("dialog.saveInterface"),
 		func() {
 			ui.Column(c).Gap(12).Children(func() {
-				ui.TextField(c, &s.saveName, "接口名称", "例如：获取用户列表").FillWidth()
+				ui.TextField(c, &s.saveName, i18n.T("dialog.interfaceName"), i18n.T("dialog.interfaceNamePlaceholder")).FillWidth()
 				s.folderPicker(c, &s.saveParent)
 			})
 		},
 		func() {
-			if ui.Button(c, "取消").Outline().Clicked() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
 				s.saveDialogOpen = false
 			}
-			if ui.Button(c, "保存").Clicked() {
+			if ui.Button(c, i18n.T("common.save")).Clicked() {
 				s.commitSaveDialog()
 			}
 		},
@@ -122,7 +123,7 @@ func (s *projectSession) folderPicker(c ui.C, selected *string) {
 	if !found {
 		*selected = paths[0]
 	}
-	ui.Select(c, selected, paths, identityLabel).FillWidth().Label("目标文件夹")
+	ui.Select(c, selected, paths, identityLabel).FillWidth().Label(i18n.T("dialog.targetFolder"))
 }
 
 // ---------------------------------------------------------------------------
@@ -130,15 +131,15 @@ func (s *projectSession) folderPicker(c ui.C, selected *string) {
 // ---------------------------------------------------------------------------
 
 func (s *projectSession) saveCaseModal(c ui.C) {
-	ui.Modal(c, &s.saveCaseOpen, "保存为用例",
+	ui.Modal(c, &s.saveCaseOpen, i18n.T("dialog.saveCase"),
 		func() {
-			ui.TextField(c, &s.saveCaseName, "用例名称", "例如：正常情况").FillWidth()
+			ui.TextField(c, &s.saveCaseName, i18n.T("dialog.caseName"), i18n.T("dialog.caseNamePlaceholder")).FillWidth()
 		},
 		func() {
-			if ui.Button(c, "取消").Outline().Clicked() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
 				s.saveCaseOpen = false
 			}
-			if ui.Button(c, "创建").Clicked() {
+			if ui.Button(c, i18n.T("common.create")).Clicked() {
 				s.commitSaveCase()
 			}
 		},
@@ -171,7 +172,7 @@ func (s *projectSession) commitSaveCase() {
 	s.saveCaseOpen = false
 	s.markTreeDirty()
 	s.persist()
-	s.app.toaster.Show("已保存用例", cs.Name, ui.ToastSuccess)
+	s.app.toaster.Show(i18n.T("toast.caseSaved"), cs.Name, ui.ToastSuccess)
 }
 
 // cloneKVs 深拷贝一个键值对切片，避免用例与接口共享底层数组。
@@ -224,23 +225,23 @@ func (s *projectSession) commitEnvSnapshots() {
 }
 
 func (s *projectSession) envDrawer(c ui.C) {
-	ui.Drawer(c, &s.envDrawerOpen, "环境管理", ui.DrawerSpec{Size: 480},
+	ui.Drawer(c, &s.envDrawerOpen, i18n.T("dialog.envManage"), ui.DrawerSpec{Size: 480},
 		func() {
 			ui.Scroll(c).Fill().Pad(16).Children(func() {
 				ui.Column(c).Gap(12).Children(func() {
 					// —— 环境选择 / 增删 ——
 					ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
 						envs := s.project.Environments
-						sel := ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Grow(1).Label("选择环境")
+						sel := ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Grow(1).Label(i18n.T("dialog.selectEnv"))
 						if sel.Changed() {
 							s.syncEnvSnapshots()
 						}
-						if ui.Button(c, "添加环境").Icon(iconPlus).Ghost().Small().Clicked() {
-							s.project.Environments = append(s.project.Environments, &model.Environment{Name: "新环境", Vars: map[string]string{}, Headers: map[string]string{}, TimeoutMs: model.DefaultTimeoutMs})
+						if ui.Button(c, i18n.T("dialog.addEnv")).Icon(iconPlus).Ghost().Small().Clicked() {
+							s.project.Environments = append(s.project.Environments, &model.Environment{Name: i18n.T("dialog.newEnv"), Vars: map[string]string{}, Headers: map[string]string{}, TimeoutMs: model.DefaultTimeoutMs})
 							s.envIndex = len(s.project.Environments) - 1
 							s.syncEnvSnapshots()
 						}
-						if len(envs) > 1 && ui.Button(c, "删除环境").Icon(iconTrash).Ghost().Small().Clicked() {
+						if len(envs) > 1 && ui.Button(c, i18n.T("dialog.deleteEnv")).Icon(iconTrash).Ghost().Small().Clicked() {
 							s.project.Environments = append(envs[:s.envIndex], envs[s.envIndex+1:]...)
 							if s.envIndex >= len(s.project.Environments) {
 								s.envIndex = len(s.project.Environments) - 1
@@ -251,30 +252,30 @@ func (s *projectSession) envDrawer(c ui.C) {
 
 					// —— 当前环境基础配置 ——
 					if env := s.currentEnv(); env != nil {
-						ui.Text(c, "基础配置").Weight(gfx.WeightSemibold)
-						ui.TextField(c, &env.Name, "环境名称", "").FillWidth()
-						ui.TextField(c, &env.BaseURL, "Base URL", "https://api.example.com").FillWidth()
-						ui.TextField(c, &s.envTimeoutEdit, "默认耗时（秒）", "30").FillWidth()
+						ui.Text(c, i18n.T("dialog.basic")).Weight(gfx.WeightSemibold)
+						ui.TextField(c, &env.Name, i18n.T("dialog.envName"), "").FillWidth()
+						ui.TextField(c, &env.BaseURL, i18n.T("dialog.baseURL"), i18n.T("dialog.baseURLPlaceholder")).FillWidth()
+						ui.TextField(c, &s.envTimeoutEdit, i18n.T("dialog.timeout"), "30").FillWidth()
 
 						ui.Divider(c)
-						ui.Text(c, "环境变量").Weight(gfx.WeightSemibold)
-						s.kvEditor(c, &s.envVarsEdit, kvColumns{valueLabel: "值"})
+						ui.Text(c, i18n.T("dialog.envVars")).Weight(gfx.WeightSemibold)
+						s.kvEditor(c, &s.envVarsEdit, kvColumns{valueLabel: i18n.T("common.value")})
 						ui.Divider(c)
-						ui.Text(c, "环境 Header").Weight(gfx.WeightSemibold)
-						s.kvEditor(c, &s.envHeadersEdit, kvColumns{valueLabel: "值"})
+						ui.Text(c, i18n.T("dialog.envHeaders")).Weight(gfx.WeightSemibold)
+						s.kvEditor(c, &s.envHeadersEdit, kvColumns{valueLabel: i18n.T("common.value")})
 					}
 
 					ui.Divider(c)
-					ui.Text(c, "全局变量").Weight(gfx.WeightSemibold)
-					s.kvEditor(c, &s.globalVarsEdit, kvColumns{valueLabel: "值"})
+					ui.Text(c, i18n.T("dialog.globalVars")).Weight(gfx.WeightSemibold)
+					s.kvEditor(c, &s.globalVarsEdit, kvColumns{valueLabel: i18n.T("common.value")})
 					ui.Divider(c)
-					ui.Text(c, "全局 Header").Weight(gfx.WeightSemibold)
-					s.kvEditor(c, &s.globalHeadersEdit, kvColumns{valueLabel: "值"})
+					ui.Text(c, i18n.T("dialog.globalHeaders")).Weight(gfx.WeightSemibold)
+					s.kvEditor(c, &s.globalHeadersEdit, kvColumns{valueLabel: i18n.T("common.value")})
 				})
 			})
 		},
 		func() {
-			if ui.Button(c, "完成").Clicked() {
+			if ui.Button(c, i18n.T("common.done")).Clicked() {
 				s.commitEnvSnapshots()
 				s.envDrawerOpen = false
 			}

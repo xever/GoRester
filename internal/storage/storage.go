@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -38,7 +39,7 @@ func LogDir() (string, error) {
 	}
 	dir := filepath.Join(base, "log")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("创建日志目录失败: %w", err)
+		return "", fmt.Errorf(i18n.T("error.logDir"), err)
 	}
 	return dir, nil
 }
@@ -52,11 +53,11 @@ func LogDir() (string, error) {
 func baseDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("获取用户主目录失败: %w", err)
+		return "", fmt.Errorf(i18n.T("error.homeDir"), err)
 	}
 	dir := filepath.Join(home, "Documents", "gorester")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("创建数据目录失败 %s: %w", dir, err)
+		return "", fmt.Errorf(i18n.T("error.dataDir"), dir, err)
 	}
 	return dir, nil
 }
@@ -106,7 +107,7 @@ func ListProjects() ([]ProjectMeta, error) {
 
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return nil, fmt.Errorf("读取数据目录失败: %w", err)
+		return nil, fmt.Errorf(i18n.T("error.readDataDir"), err)
 	}
 
 	var metas []ProjectMeta
@@ -145,11 +146,11 @@ func LoadProject(name string) (*model.Project, error) {
 	}
 	data, err := os.ReadFile(pf)
 	if err != nil {
-		return nil, fmt.Errorf("读取项目失败 %s: %w", name, err)
+		return nil, fmt.Errorf(i18n.T("error.readProject"), name, err)
 	}
 	var p model.Project
 	if err := json.Unmarshal(data, &p); err != nil {
-		return nil, fmt.Errorf("解析项目 JSON 失败 %s: %w", name, err)
+		return nil, fmt.Errorf(i18n.T("error.parseProject"), name, err)
 	}
 	// 兼容旧数据：若没有任何环境，补一个默认环境。
 	if len(p.Environments) == 0 {
@@ -161,7 +162,7 @@ func LoadProject(name string) (*model.Project, error) {
 // SaveProject 把项目数据写回磁盘（含更新时间戳）。
 func SaveProject(p *model.Project) error {
 	if p == nil {
-		return errors.New("项目为空，无法保存")
+		return errors.New(i18n.T("error.projectEmpty"))
 	}
 	p.UpdatedAt = time.Now()
 
@@ -170,17 +171,17 @@ func SaveProject(p *model.Project) error {
 		return err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("创建项目目录失败: %w", err)
+		return fmt.Errorf(i18n.T("error.createProjectDir"), err)
 	}
 
 	// json.MarshalIndent 让 JSON 文件带缩进，便于人工查看和 Git diff。
 	data, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {
-		return fmt.Errorf("序列化项目失败: %w", err)
+		return fmt.Errorf(i18n.T("error.marshalProject"), err)
 	}
 	pf := filepath.Join(dir, dataFileName)
 	if err := os.WriteFile(pf, data, 0o644); err != nil {
-		return fmt.Errorf("写入项目失败: %w", err)
+		return fmt.Errorf(i18n.T("error.writeProject"), err)
 	}
 	return nil
 }
@@ -192,7 +193,7 @@ func DeleteProject(name string) error {
 		return err
 	}
 	if err := os.RemoveAll(dir); err != nil {
-		return fmt.Errorf("删除项目失败: %w", err)
+		return fmt.Errorf(i18n.T("error.deleteProject"), err)
 	}
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 
 	"gorester/internal/highlight"
 	"gorester/internal/httpclient"
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -66,6 +67,14 @@ type workTab struct {
 	parentID string           // 用例所属接口的 ID（仅 tabCase 用）
 	iface    *model.Interface // tabInterface 的编辑对象
 	case_    *model.Case      // tabCase 的编辑对象
+}
+
+// displayName 返回标签页当前语言下的标题。概览标签的名字随界面语言实时变化。
+func (t *workTab) displayName() string {
+	if t.kind == tabOverview {
+		return i18n.T("workspace.overview")
+	}
+	return t.name
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +198,7 @@ func newProjectSession(a *appModel, p *model.Project) *projectSession {
 	}).Sequential()
 
 	// 工作区默认打开「项目概览」标签页。
-	s.workTabs = []*workTab{{kind: tabOverview, name: "项目概览"}}
+	s.workTabs = []*workTab{{kind: tabOverview, name: i18n.T("workspace.overview")}}
 	s.treeDirty = true
 
 	// 绑定树的行描述 / 名称 / 内容回调（避免每次 paint 重新分配闭包）。

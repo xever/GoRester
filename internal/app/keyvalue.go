@@ -10,6 +10,7 @@ import (
 	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/ui"
 
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -33,12 +34,12 @@ func (s *projectSession) kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns
 	// —— 表头 ——
 	ui.Row(c).Gap(8).PadBottom(4).Children(func() {
 		ui.Spacer(c).Width(20) // 复选框占位
-		ui.Text(c, "参数名").Muted().Small().Width(kvKeyWidth)
+		ui.Text(c, i18n.T("kv.name")).Muted().Small().Width(kvKeyWidth)
 		if cols.withType {
-			ui.Text(c, "类型").Muted().Small().Width(kvTypeWidth)
+			ui.Text(c, i18n.T("kv.type")).Muted().Small().Width(kvTypeWidth)
 		}
 		ui.Text(c, cols.valueLabel).Muted().Small().Width(kvValueWidth)
-		ui.Text(c, "说明").Muted().Small().Width(kvDescWidth)
+		ui.Text(c, i18n.T("kv.description")).Muted().Small().Width(kvDescWidth)
 		ui.Spacer(c).Width(56) // 必填 + 删除按钮占位
 	})
 
@@ -56,7 +57,7 @@ func (s *projectSession) kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns
 	}
 
 	// —— 添加一行 ——
-	if ui.Button(c, "添加一行").Icon(iconPlus).Ghost().Clicked() {
+	if ui.Button(c, i18n.T("kv.addRow")).Icon(iconPlus).Ghost().Clicked() {
 		*rows = append(*rows, model.KeyValue{Enabled: true})
 	}
 }
@@ -68,17 +69,17 @@ func (s *projectSession) kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool 
 		// 启用开关。
 		ui.Checkbox(c, &kv.Enabled, "")
 		// 参数名。
-		ui.TextField(c, &kv.Key, "参数名", "key").Width(kvKeyWidth)
+		ui.TextField(c, &kv.Key, i18n.T("kv.name"), "key").Width(kvKeyWidth)
 		// 类型（可选列）。
 		if cols.withType {
-			ui.Select(c, &kv.Type, formFieldTypes, identityLabel).Width(kvTypeWidth).Label("类型")
+			ui.Select(c, &kv.Type, formFieldTypes, identityLabel).Width(kvTypeWidth).Label(i18n.T("kv.type"))
 		}
 		// 值 / 示例值。
 		valueField := ui.TextField(c, &kv.Value, cols.valueLabel, "value").Width(kvValueWidth)
 		// form-data 类型为 file 时，右侧加一个文件选择图标；点击弹出系统文件选择框，
 		// 选中后把文件路径写回值字段（发送请求时按文件路径上传）。
 		if cols.withType && kv.Type == "file" {
-			valueField.Action(iconFolder, "选择文件")
+			valueField.Action(iconFolder, i18n.T("kv.selectFile"))
 			if valueField.ActionClicked() {
 				// 文件对话框会阻塞，经 Post 投递到本轮绘制之后，避免重入崩溃。
 				s.app.post(func() {
@@ -90,13 +91,13 @@ func (s *projectSession) kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool 
 			}
 		}
 		// 说明。
-		ui.TextField(c, &kv.Desc, "说明", "").Width(kvDescWidth)
+		ui.TextField(c, &kv.Desc, i18n.T("kv.description"), "").Width(kvDescWidth)
 		// 必填（body 表单）—— 用一个带星号的复选框表示。
 		if cols.withType {
-			ui.Checkbox(c, &kv.Required, "*").Tooltip("是否必填")
+			ui.Checkbox(c, &kv.Required, "*").Tooltip(i18n.T("kv.required"))
 		}
 		// 删除。
-		if ui.Button(c, "删除").Icon(iconTrash).IconOnly().Ghost().Small().Clicked() {
+		if ui.Button(c, i18n.T("common.delete")).Icon(iconTrash).IconOnly().Ghost().Small().Clicked() {
 			deleted = true
 		}
 	})
@@ -106,7 +107,7 @@ func (s *projectSession) kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool 
 // pickFilePath 弹出系统文件选择框，返回选中的文件路径；取消或失败返回 (空, false)。
 func pickFilePath() (string, bool) {
 	paths, err := vivaapp.OpenFiles(vivaapp.OpenFileOptions{
-		Title:         "选择文件",
+		Title:         i18n.T("kv.selectFile"),
 		AllowMultiple: false,
 	})
 	if err != nil || len(paths) == 0 {

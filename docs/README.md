@@ -26,12 +26,14 @@
 - 环境管理：Base URL、环境变量、环境 Header、全局变量、全局 Header、默认耗时。
 - 变量使用双花括号包裹便命名，如`{{name}}`
 - OpenAPI 3.0 导入 / 导出。
+- 中英文双语界面：启动时按系统语言自动选择，右上角「设置」中可随时切换（含「跟随系统」）。
 
 ### 当前bug
 - [ ] 请求体json、xml编辑框在点击有输入焦点后，再点击切到别的字符会不准，方向键不能上下
 ## 数据存储
 
 所有数据保存在 `~/Documents/gorester/` 目录下，一个项目一个文件夹，JSON 格式。
+界面语言偏好保存在同目录的 `config.json`（`language` 为空表示跟随系统，否则为 `zh` / `en`）。
 
 ## 目录结构
 
@@ -42,15 +44,16 @@ gorester/
 ├── internal/              # 内部实现，按职责分包
 │   ├── app/               # 应用层：窗口、主页、项目工作区、界面组件
 │   ├── model/             # 数据模型（Project / Interface / Case …）
-│   ├── storage/           # JSON 持久化到 ~/Documents/gorester/
+│   ├── storage/           # JSON 持久化到 ~/Documents/gorester/（含 config.json 偏好）
 │   ├── httpclient/        # HTTP 客户端与请求执行
 │   ├── openapi/           # OpenAPI 3.0 导入导出
-│   └── highlight/         # JSON/XML 格式化与语法高亮
+│   ├── highlight/         # JSON/XML 格式化与语法高亮
+│   └── i18n/              # 界面语言资源：i18n.go / zh.go / en.go
 ├── resource/              # 图标资源（内嵌进二进制）
 │   ├── icon.ico           #   Windows 图标
 │   ├── icon.icns          #   macOS 图标
 │   └── resource.go        #   内嵌 + 解码运行时窗口图标
-├── scripts/               # 构建 / 打包脚本（build / run / test / package-win）
+├── scripts/               # 构建 / 打包脚本（build / run / test / package-win / package-mac / sync-version）
 ├── dist/                  # 成品（编译产物，不入库）
 ├── docs/                  # 文档（本 README、需求说明）
 ├── viva.toml              # viva 打包清单（应用名、图标、版本等）
@@ -84,6 +87,8 @@ gorester/
 Windows 目标走 purego（无需 mingw-w64 交叉编译器）。图标和版本信息由 `viva.toml`
 的 `[app] icon` 写入；运行时窗口图标由内嵌的 `resource/icon.ico` 解码提供。
 两个脚本会自动按平台选用 `resource/icon.ico`（Windows）或 `resource/icon.icns`（macOS）。
+设置抽屉里显示的版本号来自 `viva.toml`：构建 / 打包前 `scripts/sync-version.sh` 会把它写入
+`internal/app/version_generated.go`（生成文件，请勿手动修改）。
 
 ## 测试与检查
 

@@ -13,6 +13,7 @@ import (
 	"github.com/vivaui/viva/ui"
 
 	"gorester/internal/highlight"
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -31,21 +32,21 @@ func (s *projectSession) responsePanel(c ui.C) {
 			ui.Spacer(c).Grow(1)
 
 			// 左侧工具栏：格式化 / 语言 / 编码下拉。
-			ui.Select(c, &s.respFormat, prettyIndices, prettyLabel).Width(90).Label("格式化")
-			ui.Select(c, &s.respLang, langOptions, identityLabel).Width(80).Label("语言")
-			ui.Select(c, &s.respEncoding, encodingOptions, identityLabel).Width(80).Label("编码")
+			ui.Select(c, &s.respFormat, prettyIndices, prettyLabel).Width(90).Label(i18n.T("response.format"))
+			ui.Select(c, &s.respLang, langOptions, langLabel).Width(80).Label(i18n.T("response.language"))
+			ui.Select(c, &s.respEncoding, encodingOptions, identityLabel).Width(80).Label(i18n.T("response.encoding"))
 
 			// 右侧工具图标：提取 / 下载 / 复制 / 搜索。
-			if ui.Button(c, "提取").Icon(iconBookmark).IconOnly().Ghost().Small().Clicked() {
-				s.app.toaster.Show("提取", "提取功能暂未实现", ui.ToastInfo)
+			if ui.Button(c, i18n.T("response.extract")).Icon(iconBookmark).IconOnly().Ghost().Small().Clicked() {
+				s.app.toaster.Show(i18n.T("toast.extract"), i18n.T("toast.extractNotImplemented"), ui.ToastInfo)
 			}
-			if ui.Button(c, "保存").Icon(iconDownload).IconOnly().Ghost().Small().Clicked() {
+			if ui.Button(c, i18n.T("response.save")).Icon(iconDownload).IconOnly().Ghost().Small().Clicked() {
 				s.app.post(s.saveResponse)
 			}
-			if ui.Button(c, "复制").Icon(iconCopy).IconOnly().Ghost().Small().Clicked() {
+			if ui.Button(c, i18n.T("response.copy")).Icon(iconCopy).IconOnly().Ghost().Small().Clicked() {
 				s.copyResponse()
 			}
-			if ui.Button(c, "搜索").Icon(iconSearch).IconOnly().Ghost().Small().Clicked() {
+			if ui.Button(c, i18n.T("response.search")).Icon(iconSearch).IconOnly().Ghost().Small().Clicked() {
 				s.respFindOpen = !s.respFindOpen
 			}
 		})
@@ -54,8 +55,8 @@ func (s *projectSession) responsePanel(c ui.C) {
 		if s.respFindOpen {
 			ui.Row(c).PadX(12).Gap(8).Items(ui.Center).Children(func() {
 				ui.Spacer(c)
-				ui.TextField(c, &s.respSearch, "查找", "输入关键字").Width(200)
-				if ui.Button(c, "查找下一个").Ghost().Small().Clicked() {
+				ui.TextField(c, &s.respSearch, i18n.T("response.find"), i18n.T("response.findPlaceholder")).Width(200)
+				if ui.Button(c, i18n.T("response.findNext")).Ghost().Small().Clicked() {
 					s.findNext()
 				}
 			})
@@ -83,7 +84,7 @@ func (s *projectSession) responsePanel(c ui.C) {
 func (s *projectSession) requestView(c ui.C, theme gfx.Theme) {
 	if s.lastReq.Method == "" {
 		ui.Column(c).Fill().Items(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Text(c, "尚未发送请求").Muted()
+			ui.Text(c, i18n.T("response.notSent")).Muted()
 		})
 		return
 	}
@@ -98,9 +99,9 @@ func (s *projectSession) requestView(c ui.C, theme gfx.Theme) {
 		ui.Divider(c)
 
 		// —— 请求头 ——
-		ui.Text(c, "请求头").Weight(gfx.WeightSemibold)
+		ui.Text(c, i18n.T("response.reqHeaders")).Weight(gfx.WeightSemibold)
 		if len(s.lastReq.Headers) == 0 {
-			ui.Text(c, "(无)").Muted()
+			ui.Text(c, i18n.T("common.none")).Muted()
 		} else {
 			for _, h := range s.lastReq.Headers {
 				ui.Row(c).Gap(12).Children(func() {
@@ -113,13 +114,13 @@ func (s *projectSession) requestView(c ui.C, theme gfx.Theme) {
 		ui.Divider(c)
 
 		// —— 请求体 ——
-		ui.Text(c, "请求体").Weight(gfx.WeightSemibold)
+		ui.Text(c, i18n.T("response.reqBody")).Weight(gfx.WeightSemibold)
 		if !s.lastReq.HasBody {
-			ui.Text(c, "(无请求体)").Muted()
+			ui.Text(c, i18n.T("response.noBody")).Muted()
 			return
 		}
 		if s.lastReq.ContentType != "" {
-			ui.Text(c, "类型："+s.lastReq.ContentType).Muted().Small()
+			ui.Text(c, fmt.Sprintf(i18n.T("response.contentType"), s.lastReq.ContentType)).Muted().Small()
 		}
 		// 有文件时显示文件路径与大小。
 		for _, f := range s.lastReq.Files {
@@ -140,13 +141,13 @@ func (s *projectSession) requestView(c ui.C, theme gfx.Theme) {
 func (s *projectSession) responseBody(c ui.C, theme gfx.Theme) {
 	if s.response == nil {
 		ui.Column(c).Fill().Items(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Text(c, "暂无响应").Muted()
+			ui.Text(c, i18n.T("response.noResponse")).Muted()
 		})
 		return
 	}
 	if s.response.Err != nil {
 		ui.Column(c).Pad(16).Children(func() {
-			ui.Text(c, "请求出错").Color(gfx.RGB(239, 68, 68)).Weight(gfx.WeightMedium)
+			ui.Text(c, i18n.T("response.error")).Color(gfx.RGB(239, 68, 68)).Weight(gfx.WeightMedium)
 			ui.Text(c, s.response.Err.Error()).Muted()
 		})
 		return
@@ -163,7 +164,7 @@ func (s *projectSession) responseBody(c ui.C, theme gfx.Theme) {
 // renderBodyLines 用 ui.List 渲染带行号的内容。
 func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme gfx.Theme) {
 	if len(lines) == 0 {
-		ui.Text(c, "(空响应体)").Muted().Pad(12)
+		ui.Text(c, i18n.T("response.emptyBody")).Muted().Pad(12)
 		return
 	}
 	needle := s.respSearch
@@ -234,7 +235,7 @@ func splitSearch(text, needle string) []searchPart {
 // responseKVs 渲染响应 Header / Cookie 键值对（只读展示）。
 func (s *projectSession) responseKVs(c ui.C, kvs []model.KeyValue) {
 	if len(kvs) == 0 {
-		ui.Text(c, "(无数据)").Muted().Pad(12)
+		ui.Text(c, i18n.T("response.noData")).Muted().Pad(12)
 		return
 	}
 	ui.Column(c).Pad(12).Gap(4).Children(func() {
@@ -284,7 +285,7 @@ func (s *projectSession) findNext() {
 			}
 		}
 	}
-	s.app.toaster.Show("未找到", "没有匹配「"+s.respSearch+"」的内容", ui.ToastInfo)
+	s.app.toaster.Show(i18n.T("toast.notFound"), fmt.Sprintf(i18n.T("toast.noMatch"), s.respSearch), ui.ToastInfo)
 }
 
 // copyResponse 把响应体复制到剪贴板。
@@ -293,10 +294,10 @@ func (s *projectSession) copyResponse() {
 		return
 	}
 	if err := vivaapp.SetClipboardText(s.response.BodyString()); err != nil {
-		s.app.toaster.Show("复制失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.copyFailed"), err.Error(), ui.ToastError)
 		return
 	}
-	s.app.toaster.Show("已复制", "响应体已复制到剪贴板", ui.ToastSuccess)
+	s.app.toaster.Show(i18n.T("toast.copied"), i18n.T("toast.bodyCopied"), ui.ToastSuccess)
 }
 
 // saveResponse 把响应体保存到文件。
@@ -312,7 +313,7 @@ func (s *projectSession) saveResponse() {
 		ext = "xml"
 	}
 	path, err := vivaapp.SaveFile(vivaapp.SaveFileOptions{
-		Title:            "下载响应",
+		Title:            i18n.T("response.saveDialog"),
 		SuggestedName:    "response." + ext,
 		DefaultExtension: ext,
 	})
@@ -320,8 +321,8 @@ func (s *projectSession) saveResponse() {
 		return
 	}
 	if err := os.WriteFile(path, s.response.Body, 0o644); err != nil {
-		s.app.toaster.Show("下载失败", err.Error(), ui.ToastError)
+		s.app.toaster.Show(i18n.T("toast.downloadFailed"), err.Error(), ui.ToastError)
 		return
 	}
-	s.app.toaster.Show("已下载", path, ui.ToastSuccess)
+	s.app.toaster.Show(i18n.T("toast.downloaded"), path, ui.ToastSuccess)
 }

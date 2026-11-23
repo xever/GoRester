@@ -4,10 +4,13 @@
 package app
 
 import (
+	"fmt"
+
 	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
 
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 	"gorester/internal/storage"
 	"gorester/resource"
@@ -27,6 +30,12 @@ type appModel struct {
 	newProjectOpen bool
 	newName        string
 	newDesc        string
+
+	// 全局设置弹窗与界面语言偏好。langPref 为 "" 表示跟随系统。
+	settingsOpen bool
+	settingsLang string
+	langPref     string
+	langMenuOpen bool // 右上角地球图标的语言快捷菜单
 
 	toaster ui.Toaster // 全局轻提示
 
@@ -55,7 +64,7 @@ func (m *appModel) invalidate() {
 
 // newAppModel 创建应用状态，并加载磁盘上已有的项目列表。
 func newAppModel() *appModel {
-	m := &appModel{active: -1}
+	m := &appModel{active: -1, langPref: storage.LoadPreferences().Language}
 	m.reloadProjects()
 	return m
 }
@@ -64,7 +73,7 @@ func newAppModel() *appModel {
 func (m *appModel) reloadProjects() {
 	metas, err := storage.ListProjects()
 	if err != nil {
-		m.toaster.Show("加载项目失败", err.Error(), ui.ToastError)
+		m.toaster.Show(i18n.T("toast.loadProjectsFailed"), err.Error(), ui.ToastError)
 		return
 	}
 	m.projects = metas
@@ -86,7 +95,8 @@ func (m *appModel) page(c ui.C) {
 			m.tabs[m.active].page(c)
 		}
 	})
-	// 全局 toast，声明一次即可。
+	// 设置抽屉与全局 toast，各声明一次即可。
+	m.settingsDrawer(c)
 	ui.Toasts(c, &m.toaster)
 }
 
@@ -97,13 +107,13 @@ func (m *appModel) tabBar(c ui.C) {
 		// 主页标签：用 Row 包住图标和文字，Hit 作为点击区域，图标与文字垂直居中。
 		homeActive := m.active < 0
 		home := ui.Row(c).PadX(12).Height(30).Radius(theme.Metrics.RadiusControl).Gap(8).Items(ui.Center).
-			Hit(ui.ID(c), "主页").Hover(ui.Look{}.Background(theme.Hover)).
+			Hit(ui.ID(c), i18n.T("common.home")).Hover(ui.Look{}.Background(theme.Hover)).
 			Children(func() {
 				ui.Icon(c, iconHome).Size(16, 16).Color(theme.Primary)
 				if homeActive {
-					ui.Text(c, "主页").Color(theme.SelectionForeground)
+					ui.Text(c, i18n.T("common.home")).Color(theme.SelectionForeground)
 				} else {
-					ui.Text(c, "主页")
+					ui.Text(c, i18n.T("common.home"))
 				}
 			})
 		if homeActive {
@@ -117,7 +127,7 @@ func (m *appModel) tabBar(c ui.C) {
 		for i, s := range m.tabs {
 			active := m.active == i
 			tab := ui.Row(c).PadLeft(12).PadRight(8).Height(32).Radius(theme.Metrics.RadiusControl).Gap(6).Items(ui.Center).
-				Hit(ui.ID(c), "标签 "+s.project.Name).Hover(ui.Look{}.Background(theme.Hover)).
+				Hit(ui.ID(c), fmt.Sprintf(i18n.T("common.tab"), s.project.Name)).Hover(ui.Look{}.Background(theme.Hover)).
 				Children(func() {
 					if active {
 						ui.Text(c, s.project.Name).Color(theme.SelectionForeground)
@@ -138,9 +148,26 @@ func (m *appModel) tabBar(c ui.C) {
 		}
 		//右侧添加更多
 		ui.Spacer(c)
-		if ui.Button(c, "").Icon(iconMore).IconOnly().Tooltip("设置").Secondary().Clicked() {
-			m.toaster.ShowAction("设置", "测试提示框", ui.ToastSuccess, "查看")
+		if ui.Button(c, "").Icon(iconMore).IconOnly().Tooltip(i18n.T("common.settings")).
+			Label(i18n.T("common.settings")).Secondary().Clicked() {
+			m.openSettings()
 		}
+
+		// 语言快捷切换：地球图标 + Viva 下拉菜单，当前偏好打勾。
+		langBtn := ui.Button(c, "").Icon(iconGlobe).IconOnly().
+			Tooltip(i18n.T("settings.langSwitch")).Label(i18n.T("settings.langSwitch")).Secondary()
+		if langBtn.Clicked() {
+			m.langMenuOpen = !m.langMenuOpen
+		}
+		ui.Menu(c, langBtn, &m.langMenuOpen, func(menu *ui.MenuItems) {
+			//menu.Label(i18n.T("settings.language"))
+			for _, value := range languageOptions {
+				option := value
+				if menu.Item(languageLabel(option)).Checked(m.langPref == option).Clicked() {
+					m.applyLanguage(option)
+				}
+			}
+		})
 	})
 }
 
@@ -152,7 +179,7 @@ func tabCloseButton(c ui.C, theme gfx.Theme, label string, active bool) ui.Box {
 		color = theme.SelectionForeground
 	}
 	return ui.Row(c).Size(18, 18).Shrink(0).Left(15).Radius(theme.Metrics.RadiusControl).
-		Hit(ui.ID(c), "关闭 "+label).
+		Hit(ui.ID(c), fmt.Sprintf(i18n.T("common.closeTab"), label)).
 		Hover(ui.Look{}.Background(theme.Hover)).
 		Children(func() {
 			ui.Icon(c, iconClose).Size(12, 12).Color(color)
@@ -191,7 +218,7 @@ func (m *appModel) openProject(name string) {
 	}
 	p, err := storage.LoadProject(name)
 	if err != nil {
-		m.toaster.Show("打开项目失败", err.Error(), ui.ToastError)
+		m.toaster.Show(i18n.T("toast.openProjectFailed"), err.Error(), ui.ToastError)
 		return
 	}
 	s := newProjectSession(m, p)
@@ -207,20 +234,20 @@ func (m *appModel) createProject(name, desc string) {
 	// 检查重名。
 	for _, meta := range m.projects {
 		if meta.Name == name {
-			m.toaster.Show("创建失败", "已存在同名项目「"+name+"」", ui.ToastError)
+			m.toaster.Show(i18n.T("toast.createFailed"), fmt.Sprintf(i18n.T("toast.duplicateProject"), name), ui.ToastError)
 			return
 		}
 	}
 	p := model.NewProject(name, desc)
 	if err := storage.SaveProject(p); err != nil {
-		m.toaster.Show("保存失败", err.Error(), ui.ToastError)
+		m.toaster.Show(i18n.T("toast.saveFailed"), err.Error(), ui.ToastError)
 		return
 	}
 	m.reloadProjects()
 	s := newProjectSession(m, p)
 	m.tabs = append(m.tabs, s)
 	m.active = len(m.tabs) - 1
-	m.toaster.Show("已创建项目", name, ui.ToastSuccess)
+	m.toaster.Show(i18n.T("toast.created"), name, ui.ToastSuccess)
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +260,8 @@ func Run() {
 	setupCrashLog()
 
 	m := newAppModel()
+	// 启动时按用户偏好选择界面语言；偏好为空则跟随系统语言。
+	m.initLanguage()
 	cfg := vivaapp.Config{
 		Title:     "GoRester",
 		Width:     1280,

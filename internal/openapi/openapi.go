@@ -7,10 +7,12 @@ package openapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -92,10 +94,10 @@ type Schema struct {
 func Parse(data []byte) (*OpenAPI, error) {
 	var doc OpenAPI
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("解析 OpenAPI 文档失败: %w", err)
+		return nil, fmt.Errorf(i18n.T("error.parseOpenAPI"), err)
 	}
 	if doc.Paths == nil {
-		return nil, fmt.Errorf("OpenAPI 文档缺少 paths 字段")
+		return nil, errors.New(i18n.T("error.missingPaths"))
 	}
 	return &doc, nil
 }
@@ -235,7 +237,7 @@ func Import(p *model.Project, doc *OpenAPI, folderName string) {
 	if folderName == "" {
 		folderName = doc.Info.Title
 		if folderName == "" {
-			folderName = "导入的接口"
+			folderName = i18n.T("openapi.importFolder")
 		}
 	}
 	folder := &model.Folder{ID: model.NewID(), Name: folderName}

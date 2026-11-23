@@ -12,6 +12,7 @@ import (
 	"github.com/vivaui/viva/ui/codeeditor"
 
 	"gorester/internal/highlight"
+	"gorester/internal/i18n"
 	"gorester/internal/model"
 )
 
@@ -26,7 +27,7 @@ func (s *projectSession) urlBar(c ui.C) {
 		// —— 方法选择器：用 Row + 彩色文字实现，方法名显示对应颜色 ——
 		methodBox := ui.Row(c).PadX(10).Height(theme.Metrics.ControlHeight).Radius(theme.Metrics.RadiusControl).Gap(4).Items(ui.Center).
 			Background(theme.Card).Border(1, theme.Border).
-			Hit(ui.ID(c), "请求方法").Hover(ui.Look{}.Background(theme.Hover)).
+			Hit(ui.ID(c), i18n.T("request.method")).Hover(ui.Look{}.Background(theme.Hover)).
 			Children(func() {
 				ui.Text(c, *f.method).Color(methodColor(*f.method)).Weight(gfx.WeightSemibold)
 				ui.Icon(c, iconChevronDown).Size(12, 12).Color(theme.MutedForeground)
@@ -43,18 +44,18 @@ func (s *projectSession) urlBar(c ui.C) {
 		})
 
 		// —— URL 输入框 ——
-		ui.TextField(c, f.path, "请求路径", "/api/users").Grow(1)
+		ui.TextField(c, f.path, i18n.T("request.path"), "/api/users").Grow(1)
 
 		// —— 发送——
-		if ui.Button(c, "发送").Icon(iconSend).Clicked() {
+		if ui.Button(c, i18n.T("request.send")).Icon(iconSend).Clicked() {
 			s.doSend()
 		}
 
 		// —— 保存 / 保存为用例 ——
-		if ui.Button(c, "保存").Icon(iconSave).Secondary().Clicked() {
+		if ui.Button(c, i18n.T("common.save")).Icon(iconSave).Secondary().Clicked() {
 			s.saveCurrent()
 		}
-		if ui.Button(c, "保存用例").Secondary().Clicked() {
+		if ui.Button(c, i18n.T("request.saveCase")).Secondary().Clicked() {
 			s.saveCaseName = ""
 			s.saveCaseTarget = s.currentInterface()
 			s.saveCaseOpen = true
@@ -79,11 +80,11 @@ func (s *projectSession) requestConfig(c ui.C) {
 		ui.Scroll(c).Grow(1).Pad(12).Children(func() {
 			switch s.reqTab {
 			case 0:
-				s.kvEditor(c, f.params, kvColumns{valueLabel: "参数值"})
+				s.kvEditor(c, f.params, kvColumns{valueLabel: i18n.T("request.valueParam")})
 			case 2:
-				s.kvEditor(c, f.cookies, kvColumns{valueLabel: "Cookie 值"})
+				s.kvEditor(c, f.cookies, kvColumns{valueLabel: i18n.T("request.valueCookie")})
 			case 3:
-				s.kvEditor(c, f.headers, kvColumns{valueLabel: "Header 值"})
+				s.kvEditor(c, f.headers, kvColumns{valueLabel: i18n.T("request.valueHeader")})
 			case 4:
 				s.authPanel(c, f.auth)
 			}
@@ -102,16 +103,16 @@ func (s *projectSession) bodyPanel(c ui.C, body *model.Body) {
 		switch body.Mode {
 		case "form-data":
 			ui.Scroll(c).Grow(1).Pad(12).Children(func() {
-				s.kvEditor(c, &body.FormData, kvColumns{withType: true, valueLabel: "示例值"})
+				s.kvEditor(c, &body.FormData, kvColumns{withType: true, valueLabel: i18n.T("request.valueExample")})
 			})
 		case "x-www-form-urlencoded":
 			ui.Scroll(c).Grow(1).Pad(12).Children(func() {
-				s.kvEditor(c, &body.URLEncoded, kvColumns{withType: true, valueLabel: "示例值"})
+				s.kvEditor(c, &body.URLEncoded, kvColumns{withType: true, valueLabel: i18n.T("request.valueExample")})
 			})
 		case "json", "xml", "raw":
 			s.bodyCodeEditor(c, body)
 		default:
-			ui.Text(c, "此接口没有请求体").Muted().Pad(12)
+			ui.Text(c, i18n.T("request.noBody")).Muted().Pad(12)
 		}
 	})
 }
@@ -127,9 +128,9 @@ func (s *projectSession) bodyCodeEditor(c ui.C, body *model.Body) {
 
 	ui.Column(c).Fill().Pad(12).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
-			ui.Text(c, "内容").Muted().Small()
+			ui.Text(c, i18n.T("request.content")).Muted().Small()
 			ui.Spacer(c).Grow(1)
-			if ui.Button(c, "格式化").Ghost().Small().Clicked() {
+			if ui.Button(c, i18n.T("request.format")).Ghost().Small().Clicked() {
 				// 以编辑器当前内容为准，格式化后写回 body 与编辑器。
 				formatted := formatBody(s.bodyEditor.String(), body.Mode)
 				body.Raw = formatted
@@ -142,24 +143,24 @@ func (s *projectSession) bodyCodeEditor(c ui.C, body *model.Body) {
 			// }
 		})
 		// 代码编辑器撑满剩余高度，内容超出时内部滚动。
-		codeeditor.View(c, "请求体内容", &s.bodyCode).Fill()
+		codeeditor.View(c, i18n.T("request.bodyContent"), &s.bodyCode).Fill()
 	})
 }
 
 // authPanel 渲染认证配置面板。
 func (s *projectSession) authPanel(c ui.C, auth *model.Auth) {
 	ui.Column(c).Gap(8).Children(func() {
-		ui.Select(c, &auth.Type, authTypeNames, identityLabel).Width(160).Label("认证类型")
+		ui.Select(c, &auth.Type, authTypeNames, identityLabel).Width(160).Label(i18n.T("request.authType"))
 		switch auth.Type {
 		case "basic":
-			ui.TextField(c, &auth.Username, "用户名", "user").FillWidth()
-			ui.TextField(c, &auth.Password, "密码", "").Secure().FillWidth()
+			ui.TextField(c, &auth.Username, i18n.T("request.username"), "user").FillWidth()
+			ui.TextField(c, &auth.Password, i18n.T("request.password"), "").Secure().FillWidth()
 		case "bearer":
 			ui.TextField(c, &auth.Token, "Token", "Bearer token").FillWidth()
 		case "api-key":
-			ui.TextField(c, &auth.Key, "键名", "X-Api-Key").FillWidth()
-			ui.TextField(c, &auth.Value, "值", "").FillWidth()
-			ui.Select(c, &auth.In, apiKeyInOptions, identityLabel).Width(160).Label("位置")
+			ui.TextField(c, &auth.Key, i18n.T("request.keyName"), "X-Api-Key").FillWidth()
+			ui.TextField(c, &auth.Value, i18n.T("request.keyValue"), "").FillWidth()
+			ui.Select(c, &auth.In, apiKeyInOptions, identityLabel).Width(160).Label(i18n.T("request.position"))
 		}
 	})
 }

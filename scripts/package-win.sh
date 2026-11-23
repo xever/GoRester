@@ -15,5 +15,8 @@ set -euo pipefail
 # 切到项目根目录。
 cd "$(dirname "$0")/.."
 
+# 同步版本号：viva package 用自己的 ldflags，显示的版本来自生成的 Go 文件。
+./scripts/sync-version.sh
+
 go run github.com/vivaui/viva/cmd/viva@v0.6.6 package \
 	--target windows --arch amd64 --format zip

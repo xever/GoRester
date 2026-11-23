@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"time"
+
+	"gorester/internal/i18n"
 )
 
 // NewID 生成一个全局唯一的 ID，用于接口、用例、文件夹等节点。
@@ -95,7 +97,7 @@ type FolderTarget struct {
 
 // FolderTargets 返回项目根目录 + 所有文件夹（用于下拉选择）。
 func (p *Project) FolderTargets() []FolderTarget {
-	out := []FolderTarget{{Path: "项目根目录"}}
+	out := []FolderTarget{{Path: i18n.T("model.rootFolder")}}
 	var walk func(fs []*Folder, prefix string)
 	walk = func(fs []*Folder, prefix string) {
 		for _, f := range fs {
@@ -118,5 +120,5 @@ func (p *Project) TargetByPath(path string) FolderTarget {
 			return t
 		}
 	}
-	return FolderTarget{Path: "项目根目录"}
+	return FolderTarget{Path: i18n.T("model.rootFolder")}
 }
