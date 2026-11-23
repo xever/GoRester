@@ -72,6 +72,7 @@ Windows 目标走 purego（无需 mingw-w64 交叉编译器）。图标和版本
 - 请求参数配置：Params / Body / Cookie / Header / Auth；Body 支持 none / form-data / x-www-form-urlencoded / json / xml / raw，json/xml 支持格式化。
 - 响应结果：Body / Cookie / Header，Pretty/Raw 切换，带行号与语法高亮，支持下载、复制、搜索；状态栏显示耗时与状态码。
 - 环境管理：Base URL、环境变量、环境 Header、全局变量、全局 Header、默认耗时。
+- 变量使用双花括号包裹便命名，如`{{name}}`
 - OpenAPI 3.0 导入 / 导出。
 
 ## 数据存储
