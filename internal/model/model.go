@@ -1,5 +1,5 @@
 // Package model 定义 GoRester 的核心数据模型。
-// 所有数据最终都会以 JSON 格式保存到用户目录 ~/gorester/ 下。
+// 所有数据最终都会以 JSON 格式保存到用户目录 ~/Documents/gorester/ 下。
 // 结构体字段后面的 `json:"..."` 标签，决定了保存成 JSON 文件时的字段名。
 package model
 

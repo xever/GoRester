@@ -1,13 +1,13 @@
 // Package storage 负责把所有数据持久化到磁盘。
 //
-// 数据存放规则（见需求）：
-//   - 所有数据保存到用户主目录下的 ~/gorester/ 目录
+// 数据存放规则：
+//   - 所有数据保存到用户主目录下的 ~/Documents/gorester/ 目录
 //   - 全部使用 JSON 格式
 //   - 一个项目一个文件夹，文件夹名就是项目名称
 //
 // 因此磁盘结构形如：
 //
-//	~/gorester/
+//	~/Documents/gorester/
 //	  ├── 项目A/
 //	  │    └── project.json
 //	  └── 项目B/
@@ -41,7 +41,7 @@ func baseDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("获取用户主目录失败: %w", err)
 	}
-	dir := filepath.Join(home, "gorester")
+	dir := filepath.Join(home, "Documents", "gorester")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("创建数据目录失败 %s: %w", dir, err)
 	}

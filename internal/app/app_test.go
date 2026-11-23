@@ -207,3 +207,23 @@ func TestSplitSearch(t *testing.T) {
 		t.Fatalf("应有两处命中，实际 %d", matched)
 	}
 }
+
+// TestReqTabFor 验证按接口内容自动选择请求配置 Tab。
+func TestReqTabFor(t *testing.T) {
+	if got := reqTabFor(nil, nil, nil, model.Body{Mode: "json"}, model.Auth{}); got != 1 {
+		t.Fatalf("有 body 应选 Body 标签(1)，got %d", got)
+	}
+	if got := reqTabFor([]model.KeyValue{{Key: "page"}}, nil, nil, model.Body{}, model.Auth{}); got != 0 {
+		t.Fatalf("有 params 应选 Params 标签(0)，got %d", got)
+	}
+	if got := reqTabFor(nil, []model.KeyValue{{Key: "X-Token"}}, nil, model.Body{}, model.Auth{}); got != 3 {
+		t.Fatalf("有 header 应选 Header 标签(3)，got %d", got)
+	}
+	if got := reqTabFor(nil, nil, nil, model.Body{}, model.Auth{Type: "bearer"}); got != 4 {
+		t.Fatalf("有 auth 应选 Auth 标签(4)，got %d", got)
+	}
+	// 空接口默认 Params 标签(0)。
+	if got := reqTabFor(nil, nil, nil, model.Body{}, model.Auth{}); got != 0 {
+		t.Fatalf("空接口应默认 Params 标签(0)，got %d", got)
+	}
+}

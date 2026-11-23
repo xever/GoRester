@@ -115,6 +115,7 @@ func (s *projectSession) openInterfaceTab(iface *model.Interface, isNew bool) {
 	for i, t := range s.workTabs {
 		if t.kind == tabInterface && t.iface == iface {
 			s.activeWork = i
+			s.autoSelectReqTab(iface.Params, iface.Headers, iface.Cookies, iface.Body, iface.Auth)
 			return
 		}
 	}
@@ -124,6 +125,7 @@ func (s *projectSession) openInterfaceTab(iface *model.Interface, isNew bool) {
 	}
 	s.workTabs = append(s.workTabs, &workTab{kind: tabInterface, id: iface.ID, name: name, isNew: isNew, iface: iface})
 	s.activeWork = len(s.workTabs) - 1
+	s.autoSelectReqTab(iface.Params, iface.Headers, iface.Cookies, iface.Body, iface.Auth)
 }
 
 // openCaseTab 打开（或切换到）一个用例的编辑标签页。
@@ -131,6 +133,7 @@ func (s *projectSession) openCaseTab(iface *model.Interface, cs *model.Case) {
 	for i, t := range s.workTabs {
 		if t.kind == tabCase && t.case_ == cs {
 			s.activeWork = i
+			s.autoSelectReqTab(cs.Params, cs.Headers, cs.Cookies, cs.Body, cs.Auth)
 			return
 		}
 	}
@@ -140,6 +143,56 @@ func (s *projectSession) openCaseTab(iface *model.Interface, cs *model.Case) {
 	}
 	s.workTabs = append(s.workTabs, &workTab{kind: tabCase, id: cs.ID, name: cs.Name, parentID: parentID, case_: cs})
 	s.activeWork = len(s.workTabs) - 1
+	s.autoSelectReqTab(cs.Params, cs.Headers, cs.Cookies, cs.Body, cs.Auth)
+}
+
+// autoSelectReqTab 根据接口 / 用例实际含有的参数类型，自动选中对应的请求配置 Tab，
+// 并在选中 Body 时把 bodyFormat 同步成请求体格式。
+func (s *projectSession) autoSelectReqTab(params, headers, cookies []model.KeyValue, body model.Body, auth model.Auth) {
+	s.reqTab = reqTabFor(params, headers, cookies, body, auth)
+	if s.reqTab == 1 { // Body 标签
+		s.bodyFormat = bodyFormatFor(body.Mode)
+	}
+}
+
+// reqTabFor 返回应打开的请求配置 Tab 下标：Body 优先，其次 Params、Header、Cookie、Auth。
+func reqTabFor(params, headers, cookies []model.KeyValue, body model.Body, auth model.Auth) int {
+	if body.Mode != "" && body.Mode != "none" {
+		return 1 // Body
+	}
+	if hasKV(params) {
+		return 0 // Params
+	}
+	if hasKV(headers) {
+		return 3 // Header
+	}
+	if hasKV(cookies) {
+		return 2 // Cookie
+	}
+	if auth.Type != "" && auth.Type != "none" {
+		return 4 // Auth
+	}
+	return 0 // 默认 Params
+}
+
+// bodyFormatFor 返回请求体格式对应的子 Tab 下标。
+func bodyFormatFor(mode string) int {
+	for i, m := range bodyFormatModes {
+		if m == mode {
+			return i
+		}
+	}
+	return 0
+}
+
+// hasKV 判断键值对切片里是否有有效条目（键名非空）。
+func hasKV(kvs []model.KeyValue) bool {
+	for _, kv := range kvs {
+		if kv.Key != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // createNewInterfaceDraft 新建一个未保存的接口草稿并打开编辑标签页。

@@ -12,7 +12,7 @@ gorester/
 ├── internal/              # 内部实现，按职责分包
 │   ├── app/               # 应用层：窗口、主页、项目工作区、界面组件
 │   ├── model/             # 数据模型（Project / Interface / Case …）
-│   ├── storage/           # JSON 持久化到 ~/gorester/
+│   ├── storage/           # JSON 持久化到 ~/Documents/gorester/
 │   ├── httpclient/        # HTTP 客户端与请求执行
 │   ├── openapi/           # OpenAPI 3.0 导入导出
 │   └── highlight/         # JSON/XML 格式化与语法高亮
@@ -76,4 +76,4 @@ Windows 目标走 purego（无需 mingw-w64 交叉编译器）。图标和版本
 
 ## 数据存储
 
-所有数据保存在 `~/gorester/` 目录下，一个项目一个文件夹，JSON 格式。
+所有数据保存在 `~/Documents/gorester/` 目录下，一个项目一个文件夹，JSON 格式。

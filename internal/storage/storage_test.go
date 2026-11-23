@@ -34,8 +34,8 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("项目说明不匹配: %q", loaded.Description)
 	}
 
-	// 数据应写入 ~/gorester/测试项目/project.json。
-	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), "gorester", "测试项目", "project.json")); err != nil {
+	// 数据应写入 ~/Documents/gorester/测试项目/project.json。
+	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), "Documents", "gorester", "测试项目", "project.json")); err != nil {
 		t.Fatalf("应存在 project.json: %v", err)
 	}
 
