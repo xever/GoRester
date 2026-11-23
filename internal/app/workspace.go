@@ -736,7 +736,7 @@ func (s *projectSession) responsePanel(c ui.C) {
 				s.app.toaster.Show("提取", "提取功能暂未实现", ui.ToastInfo)
 			}
 			if ui.Button(c, "下载").Icon(iconDownload).IconOnly().Ghost().Small().Clicked() {
-				s.downloadResponse()
+				runFileDialog(s.downloadResponse)
 			}
 			if ui.Button(c, "复制").Icon(iconCopy).IconOnly().Ghost().Small().Clicked() {
 				s.copyResponse()

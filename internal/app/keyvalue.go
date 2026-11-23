@@ -80,9 +80,11 @@ func kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
 		if cols.withType && kv.Type == "file" {
 			valueField.Action(iconFolder, "选择文件")
 			if valueField.ActionClicked() {
-				if path, ok := pickFilePath(); ok {
-					kv.Value = path
-				}
+				runFileDialog(func() {
+					if path, ok := pickFilePath(); ok {
+						kv.Value = path
+					}
+				})
 			}
 		}
 		// 说明。
@@ -109,4 +111,24 @@ func pickFilePath() (string, bool) {
 		return "", false
 	}
 	return paths[0], true
+}
+
+// ---------------------------------------------------------------------------
+// 文件对话框防重入
+// ---------------------------------------------------------------------------
+//
+// Windows 上原生文件对话框（IFileDialog::Show）运行嵌套消息循环，会在对话框
+// 打开期间重入绘制，导致同一次点击被重复检测、打开多个对话框直至崩溃。
+// 这里用一个标志保证同一时间只打开一个文件对话框。
+
+var fileDialogOpen bool
+
+// runFileDialog 在文件对话框打开期间禁止重入，避免重复打开对话框。
+func runFileDialog(fn func()) {
+	if fileDialogOpen {
+		return
+	}
+	fileDialogOpen = true
+	defer func() { fileDialogOpen = false }()
+	fn()
 }

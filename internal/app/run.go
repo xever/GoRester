@@ -207,6 +207,9 @@ func (m *appModel) createProject(name, desc string) {
 
 // Run 打开窗口并运行应用，阻塞直到窗口关闭。
 func Run() {
+	// 安装崩溃日志，把 panic / 致命错误写到 ~/Documents/gorester/log/app.log。
+	setupCrashLog()
+
 	m := newAppModel()
 	cfg := vivaapp.Config{
 		Title:     "GoRester",

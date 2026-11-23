@@ -30,6 +30,19 @@ import (
 // dataFileName 是每个项目文件夹里保存数据的 JSON 文件名。
 const dataFileName = "project.json"
 
+// LogDir 返回日志目录 ~/Documents/gorester/log（不存在则创建）。
+func LogDir() (string, error) {
+	base, err := baseDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(base, "log")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("创建日志目录失败: %w", err)
+	}
+	return dir, nil
+}
+
 // ---------------------------------------------------------------------------
 // 目录与路径工具
 // ---------------------------------------------------------------------------

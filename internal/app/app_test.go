@@ -227,3 +227,19 @@ func TestReqTabFor(t *testing.T) {
 		t.Fatalf("空接口应默认 Params 标签(0)，got %d", got)
 	}
 }
+
+// TestRunFileDialogGuardsReentrancy 验证文件对话框防重入：嵌套调用被忽略。
+func TestRunFileDialogGuardsReentrancy(t *testing.T) {
+	outer, inner := 0, 0
+	runFileDialog(func() {
+		outer++
+		// 对话框打开期间的嵌套调用（Windows 重入绘制）应被忽略。
+		runFileDialog(func() { inner++ })
+	})
+	if outer != 1 {
+		t.Fatalf("外层应执行一次，实际 %d", outer)
+	}
+	if inner != 0 {
+		t.Fatalf("嵌套调用应被忽略，实际执行了 %d 次", inner)
+	}
+}
