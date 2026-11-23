@@ -3,6 +3,30 @@
 一个使用 **Go + Viva** 编写的类 Postman / Apifox 的 HTTP 接口管理与测试工具。
 原生桌面应用（macOS / Windows / Linux），无 WebView、无浏览器引擎。
 
+## 为什么做这个
+1. 之前常用的某跨平台客户端内存占用极大，还有内存泄漏
+2. 他们跨平台都是electron平台的，尝试原生UI
+3. 尝试AI agent编程，学习go 语言
+4. 为什么没有用rust+tauri ？觉得go有意思 简单好学
+5. 开发过程还是发现基于webview的组件丰富好做 :( 😝 
+
+
+## 功能
+
+- 主页以方格卡片展示项目，左上角「新建」创建项目。
+- 每个项目一个标签页，可关闭；左右分栏：左侧接口目录树，右侧主工作区。
+- 接口目录树：搜索、按方法过滤、多级文件夹、右键新建接口/文件夹、方法字母徽标、接口下可展开用例。
+- 主工作区：工作区标签页（项目概览 + 接口 + 用例）、环境下拉、URL 构造栏（方法 / 路径 / 发送 / 保存 / 保存为用例）。
+- 请求参数配置：Params / Body / Cookie / Header / Auth；Body 支持 none / form-data / x-www-form-urlencoded / json / xml / raw，json/xml 支持格式化。
+- 响应结果：Body / Cookie / Header，Pretty/Raw 切换，带行号与语法高亮，支持下载、复制、搜索；状态栏显示耗时与状态码。
+- 环境管理：Base URL、环境变量、环境 Header、全局变量、全局 Header、默认耗时。
+- 变量使用双花括号包裹便命名，如`{{name}}`
+- OpenAPI 3.0 导入 / 导出。
+
+## 数据存储
+
+所有数据保存在 `~/Documents/gorester/` 目录下，一个项目一个文件夹，JSON 格式。
+
 ## 目录结构
 
 ```
@@ -62,19 +86,3 @@ Windows 目标走 purego（无需 mingw-w64 交叉编译器）。图标和版本
 ```
 
 测试使用 Viva 的无窗口驱动（`app.Driver`）渲染真实绘制器与焦点规则，不打开窗口。
-
-## 功能
-
-- 主页以方格卡片展示项目，左上角「新建」创建项目。
-- 每个项目一个标签页，可关闭；左右分栏：左侧接口目录树，右侧主工作区。
-- 接口目录树：搜索、按方法过滤、多级文件夹、右键新建接口/文件夹、方法字母徽标、接口下可展开用例。
-- 主工作区：工作区标签页（项目概览 + 接口 + 用例）、环境下拉、URL 构造栏（方法 / 路径 / 发送 / 保存 / 保存为用例）。
-- 请求参数配置：Params / Body / Cookie / Header / Auth；Body 支持 none / form-data / x-www-form-urlencoded / json / xml / raw，json/xml 支持格式化。
-- 响应结果：Body / Cookie / Header，Pretty/Raw 切换，带行号与语法高亮，支持下载、复制、搜索；状态栏显示耗时与状态码。
-- 环境管理：Base URL、环境变量、环境 Header、全局变量、全局 Header、默认耗时。
-- 变量使用双花括号包裹便命名，如`{{name}}`
-- OpenAPI 3.0 导入 / 导出。
-
-## 数据存储
-
-所有数据保存在 `~/Documents/gorester/` 目录下，一个项目一个文件夹，JSON 格式。
