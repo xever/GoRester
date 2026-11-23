@@ -10,7 +10,7 @@ import (
 // 主页卡片尺寸。
 const (
 	homeCardWidth  = 200
-	homeCardHeight = 140
+	homeCardHeight = 120
 )
 
 // homePage 渲染主页。

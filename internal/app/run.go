@@ -114,6 +114,11 @@ func (m *appModel) tabBar(c ui.C) {
 				m.active = i
 			}
 		}
+		//右侧添加更多
+		ui.Spacer(c)
+		if ui.Button(c, "").Icon(iconMore).IconOnly().Tooltip("设置").Secondary().Clicked() {
+			m.toaster.ShowAction("设置", "测试提示框", ui.ToastSuccess, "查看")
+		}
 	})
 }
 
