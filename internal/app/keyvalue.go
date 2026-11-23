@@ -29,7 +29,7 @@ type kvColumns struct {
 
 // kvEditor 渲染一张可编辑的键值对表。
 // rows 是 *[]model.KeyValue，直接修改它即可。
-func kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
+func (s *projectSession) kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
 	// —— 表头 ——
 	ui.Row(c).Gap(8).PadBottom(4).Children(func() {
 		ui.Spacer(c).Width(20) // 复选框占位
@@ -46,7 +46,7 @@ func kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
 	delIdx := -1
 	for i := range *rows {
 		kv := &(*rows)[i]
-		if kvRow(c, kv, cols) {
+		if s.kvRow(c, kv, cols) {
 			delIdx = i
 		}
 	}
@@ -62,7 +62,7 @@ func kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
 }
 
 // kvRow 渲染一行键值对，返回 true 表示点了删除。
-func kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
+func (s *projectSession) kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
 	deleted := false
 	ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
 		// 启用开关。
@@ -80,9 +80,11 @@ func kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool {
 		if cols.withType && kv.Type == "file" {
 			valueField.Action(iconFolder, "选择文件")
 			if valueField.ActionClicked() {
-				runFileDialog(func() {
+				// 文件对话框会阻塞，经 Post 投递到本轮绘制之后，避免重入崩溃。
+				s.app.post(func() {
 					if path, ok := pickFilePath(); ok {
 						kv.Value = path
+						s.app.invalidate()
 					}
 				})
 			}
@@ -111,24 +113,4 @@ func pickFilePath() (string, bool) {
 		return "", false
 	}
 	return paths[0], true
-}
-
-// ---------------------------------------------------------------------------
-// 文件对话框防重入
-// ---------------------------------------------------------------------------
-//
-// Windows 上原生文件对话框（IFileDialog::Show）运行嵌套消息循环，会在对话框
-// 打开期间重入绘制，导致同一次点击被重复检测、打开多个对话框直至崩溃。
-// 这里用一个标志保证同一时间只打开一个文件对话框。
-
-var fileDialogOpen bool
-
-// runFileDialog 在文件对话框打开期间禁止重入，避免重复打开对话框。
-func runFileDialog(fn func()) {
-	if fileDialogOpen {
-		return
-	}
-	fileDialogOpen = true
-	defer func() { fileDialogOpen = false }()
-	fn()
 }

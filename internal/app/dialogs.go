@@ -258,18 +258,18 @@ func (s *projectSession) envDrawer(c ui.C) {
 
 						ui.Divider(c)
 						ui.Text(c, "环境变量").Weight(gfx.WeightSemibold)
-						kvEditor(c, &s.envVarsEdit, kvColumns{valueLabel: "值"})
+						s.kvEditor(c, &s.envVarsEdit, kvColumns{valueLabel: "值"})
 						ui.Divider(c)
 						ui.Text(c, "环境 Header").Weight(gfx.WeightSemibold)
-						kvEditor(c, &s.envHeadersEdit, kvColumns{valueLabel: "值"})
+						s.kvEditor(c, &s.envHeadersEdit, kvColumns{valueLabel: "值"})
 					}
 
 					ui.Divider(c)
 					ui.Text(c, "全局变量").Weight(gfx.WeightSemibold)
-					kvEditor(c, &s.globalVarsEdit, kvColumns{valueLabel: "值"})
+					s.kvEditor(c, &s.globalVarsEdit, kvColumns{valueLabel: "值"})
 					ui.Divider(c)
 					ui.Text(c, "全局 Header").Weight(gfx.WeightSemibold)
-					kvEditor(c, &s.globalHeadersEdit, kvColumns{valueLabel: "值"})
+					s.kvEditor(c, &s.globalHeadersEdit, kvColumns{valueLabel: "值"})
 				})
 			})
 		},

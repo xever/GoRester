@@ -44,7 +44,7 @@ func setupCrashLog() {
 
 	// Viva 捕获到的 panic（不会让进程退出的那种）。
 	vivaapp.SetFaultHandler(func(fault vivaapp.Fault) {
-		writeCrashLog([]byte(fmt.Sprintf("[fault] %s: %s\n%s\n", fault.Where, fault.Message, fault.Stack)))
+		writeCrashLog(fmt.Appendf(nil, "[fault] %s: %s\n%s\n", fault.Where, fault.Message, fault.Stack))
 	})
 }
 

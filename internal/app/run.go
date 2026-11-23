@@ -29,6 +29,28 @@ type appModel struct {
 	newDesc        string
 
 	toaster ui.Toaster // 全局轻提示
+
+	// application 是运行中的应用（RunApplication 启动回调里保存），用于把
+	// 会阻塞的操作（文件对话框等）投递到本轮绘制之后执行。
+	application *vivaapp.Application
+	// inv 用于后台工作完成后请求一次重绘。
+	inv vivaapp.Invalidator
+}
+
+// post 把 fn 投递到事件循环线程执行（在本轮绘制结束之后），用于文件对话框等
+// 会阻塞当前线程的操作，避免在绘制过程中重入。无 application（例如测试）时
+// 退化为同步执行。
+func (m *appModel) post(fn func()) {
+	if m.application != nil {
+		m.application.Post(fn)
+		return
+	}
+	fn()
+}
+
+// invalidate 请求一次重绘（后台工作改完状态后调用）。
+func (m *appModel) invalidate() {
+	m.inv.Invalidate()
 }
 
 // newAppModel 创建应用状态，并加载磁盘上已有的项目列表。
@@ -222,13 +244,17 @@ func Run() {
 	if size, rgba := resource.WindowIconRGBA(); size > 0 {
 		cfg.Icon = vivaapp.WindowIcon{Size: size, RGBA: rgba}
 	}
-	// 跟随系统明暗主题（Theme 留空、开启 FollowSystemTheme）。
-	page := ui.NewPage(ui.PageConfig{View: m.page, FollowSystemTheme: true})
+	// 让后台工作（文件对话框等）完成后能请求重绘。
+	cfg.Invalidator = &m.inv
 
-	// 注意：必须用 RunCanvas（而非 app.Run）——RunCanvas 才会把页面的
-	// 绘制回调（painter）挂到原生窗口上；app.Run 只开窗口不绘制，会黑屏。
-	var canvas gfx.Canvas
-	if err := vivaapp.RunCanvas(ui.Configure(page, cfg), &canvas); err != nil {
+	// 用 RunApplication 拿到 *app.Application，这样文件对话框可以经 Post
+	// 投递到本轮绘制之后，避免在绘制里打开模态对话框导致重入崩溃。
+	if err := vivaapp.RunApplication(func(application *vivaapp.Application) error {
+		m.application = application
+		// 跟随系统明暗主题（Theme 留空、开启 FollowSystemTheme）。
+		_, err := ui.OpenWindow(application, cfg, ui.PageConfig{View: m.page, FollowSystemTheme: true})
+		return err
+	}); err != nil {
 		panic(err)
 	}
 }

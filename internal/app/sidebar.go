@@ -49,10 +49,10 @@ func (s *projectSession) sidebar(c ui.C) {
 
 		// 导入 / 导出 OpenAPI。
 		if ui.Button(c, "").Icon(iconDownload).Ghost().Tooltip("导入OpenAPI").Small().Clicked() {
-			runFileDialog(s.importOpenAPI)
+			s.app.post(s.importOpenAPI)
 		}
 		if ui.Button(c, "").Icon(iconUpload).Ghost().Tooltip("导出").Small().Clicked() {
-			runFileDialog(s.exportOpenAPI)
+			s.app.post(s.exportOpenAPI)
 		}
 
 		ui.Spacer(c).Grow(1)

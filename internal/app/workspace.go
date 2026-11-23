@@ -338,6 +338,7 @@ func (s *projectSession) persist() {
 
 // exportOpenAPI 把项目导出为 OpenAPI 3.0 文件。
 func (s *projectSession) exportOpenAPI() {
+	defer s.app.invalidate() // 对话框/提示后重绘，让 toast 显示
 	doc := openapi.Export(s.project)
 	data, err := doc.Marshal()
 	if err != nil {
@@ -363,6 +364,7 @@ func (s *projectSession) exportOpenAPI() {
 
 // importOpenAPI 从文件导入 OpenAPI 3.0 到项目。
 func (s *projectSession) importOpenAPI() {
+	defer s.app.invalidate() // 导入后重绘，刷新目录树并显示 toast
 	paths, err := vivaapp.OpenFiles(vivaapp.OpenFileOptions{
 		Title:         "导入 OpenAPI",
 		AllowMultiple: false,
@@ -627,11 +629,11 @@ func (s *projectSession) requestConfig(c ui.C) {
 		ui.Scroll(c).Grow(1).Pad(12).Children(func() {
 			switch s.reqTab {
 			case 0:
-				kvEditor(c, f.params, kvColumns{valueLabel: "参数值"})
+				s.kvEditor(c, f.params, kvColumns{valueLabel: "参数值"})
 			case 2:
-				kvEditor(c, f.cookies, kvColumns{valueLabel: "Cookie 值"})
+				s.kvEditor(c, f.cookies, kvColumns{valueLabel: "Cookie 值"})
 			case 3:
-				kvEditor(c, f.headers, kvColumns{valueLabel: "Header 值"})
+				s.kvEditor(c, f.headers, kvColumns{valueLabel: "Header 值"})
 			case 4:
 				s.authPanel(c, f.auth)
 			}
@@ -650,11 +652,11 @@ func (s *projectSession) bodyPanel(c ui.C, body *model.Body) {
 		switch body.Mode {
 		case "form-data":
 			ui.Scroll(c).Grow(1).Pad(12).Children(func() {
-				kvEditor(c, &body.FormData, kvColumns{withType: true, valueLabel: "示例值"})
+				s.kvEditor(c, &body.FormData, kvColumns{withType: true, valueLabel: "示例值"})
 			})
 		case "x-www-form-urlencoded":
 			ui.Scroll(c).Grow(1).Pad(12).Children(func() {
-				kvEditor(c, &body.URLEncoded, kvColumns{withType: true, valueLabel: "示例值"})
+				s.kvEditor(c, &body.URLEncoded, kvColumns{withType: true, valueLabel: "示例值"})
 			})
 		case "json", "xml", "raw":
 			s.bodyCodeEditor(c, body)
@@ -735,8 +737,8 @@ func (s *projectSession) responsePanel(c ui.C) {
 			if ui.Button(c, "提取").Icon(iconBookmark).IconOnly().Ghost().Small().Clicked() {
 				s.app.toaster.Show("提取", "提取功能暂未实现", ui.ToastInfo)
 			}
-			if ui.Button(c, "下载").Icon(iconDownload).IconOnly().Ghost().Small().Clicked() {
-				runFileDialog(s.downloadResponse)
+			if ui.Button(c, "保存").Icon(iconDownload).IconOnly().Ghost().Small().Clicked() {
+				s.app.post(s.saveResponse)
 			}
 			if ui.Button(c, "复制").Icon(iconCopy).IconOnly().Ghost().Small().Clicked() {
 				s.copyResponse()
@@ -936,8 +938,9 @@ func (s *projectSession) copyResponse() {
 	s.app.toaster.Show("已复制", "响应体已复制到剪贴板", ui.ToastSuccess)
 }
 
-// downloadResponse 把响应体保存到文件。
-func (s *projectSession) downloadResponse() {
+// saveResponse 把响应体保存到文件。
+func (s *projectSession) saveResponse() {
+	defer s.app.invalidate() // 保存后重绘，让 toast 显示
 	if s.response == nil {
 		return
 	}
