@@ -9,6 +9,7 @@ package httpclient
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -59,6 +60,24 @@ func (r *Result) BodyString() string {
 	return string(r.Body)
 }
 
+// RequestInfo 是一次已解析请求的可读描述，用于展示「实际请求」。
+// 变量已替换、base_url 与 path 已拼接、认证 / Cookie 已展开。
+type RequestInfo struct {
+	Method      string           // HTTP 方法
+	URL         string           // 完整 URL（含查询参数）
+	Headers     []model.KeyValue // 实际发送的请求头
+	ContentType string           // Content-Type
+	Body        string           // 可读的请求体文本（无文件时）
+	HasBody     bool             // 是否有请求体
+	Files       []FileInfo       // 上传的文件（form-data file 类型）
+}
+
+// FileInfo 描述一个要上传的文件。
+type FileInfo struct {
+	Path string // 原始文件路径
+	Size int64  // 文件大小（字节）
+}
+
 // ---------------------------------------------------------------------------
 // 客户端
 // ---------------------------------------------------------------------------
@@ -103,6 +122,131 @@ func (c *Client) SetTimeout(timeout time.Duration) {
 // Timeout 返回当前超时时间。
 func (c *Client) Timeout() time.Duration {
 	return c.timeout
+}
+
+// Describe 把 opts 解析成一份可读的「实际请求」描述：替换变量、拼接 base_url
+// 与 path、展开查询参数、Cookie、认证与请求体。用于界面展示本次实际发出的请求。
+func (c *Client) Describe(opts RequestOptions) RequestInfo {
+	info := RequestInfo{Method: opts.Method}
+
+	vars := opts.Vars
+	if vars == nil {
+		vars = map[string]string{}
+	}
+	subst := func(s string) string { return substituteVars(s, vars) }
+
+	// —— URL：base_url + path + 查询参数 ——
+	base := strings.TrimRight(subst(opts.BaseURL), "/")
+	fullURL := base + "/" + strings.TrimLeft(subst(opts.Path), "/")
+	if u, err := url.Parse(fullURL); err == nil {
+		q := u.Query()
+		for _, p := range opts.Params {
+			if p.Key == "" {
+				continue
+			}
+			q.Add(subst(p.Key), subst(p.Value))
+		}
+		u.RawQuery = q.Encode()
+		fullURL = u.String()
+	}
+	info.URL = fullURL
+
+	// —— 请求头（接口自己的 + 全局/环境 header 已在 buildOptions 里合并）——
+	for _, h := range opts.Headers {
+		if h.Key == "" {
+			continue
+		}
+		info.Headers = append(info.Headers, model.KeyValue{Key: subst(h.Key), Value: subst(h.Value), Enabled: true})
+	}
+
+	// —— Cookie ——
+	if len(opts.Cookies) > 0 {
+		var cookies []string
+		for _, ck := range opts.Cookies {
+			if ck.Key == "" {
+				continue
+			}
+			cookies = append(cookies, subst(ck.Key)+"="+subst(ck.Value))
+		}
+		if len(cookies) > 0 {
+			info.Headers = append(info.Headers, model.KeyValue{Key: "Cookie", Value: strings.Join(cookies, "; "), Enabled: true})
+		}
+	}
+
+	// —— 认证 ——
+	switch opts.Auth.Type {
+	case "basic":
+		cred := base64.StdEncoding.EncodeToString([]byte(subst(opts.Auth.Username) + ":" + subst(opts.Auth.Password)))
+		info.Headers = append(info.Headers, model.KeyValue{Key: "Authorization", Value: "Basic " + cred, Enabled: true})
+	case "bearer":
+		info.Headers = append(info.Headers, model.KeyValue{Key: "Authorization", Value: "Bearer " + subst(opts.Auth.Token), Enabled: true})
+	case "api-key":
+		key, value := subst(opts.Auth.Key), subst(opts.Auth.Value)
+		if opts.Auth.In == "query" {
+			if u, err := url.Parse(fullURL); err == nil {
+				q := u.Query()
+				q.Set(key, value)
+				u.RawQuery = q.Encode()
+				info.URL = u.String()
+			}
+		} else {
+			info.Headers = append(info.Headers, model.KeyValue{Key: key, Value: value, Enabled: true})
+		}
+	}
+
+	// —— 请求体 ——
+	switch opts.Body.Mode {
+	case "json":
+		info.Body = subst(opts.Body.Raw)
+		info.ContentType = "application/json"
+		info.HasBody = true
+	case "xml":
+		info.Body = subst(opts.Body.Raw)
+		info.ContentType = "application/xml"
+		info.HasBody = true
+	case "raw":
+		info.Body = subst(opts.Body.Raw)
+		info.ContentType = "text/plain"
+		info.HasBody = true
+	case "x-www-form-urlencoded":
+		vals := url.Values{}
+		for _, kv := range opts.Body.URLEncoded {
+			if kv.Key == "" {
+				continue
+			}
+			vals.Set(subst(kv.Key), subst(kv.Value))
+		}
+		info.Body = vals.Encode()
+		info.ContentType = "application/x-www-form-urlencoded"
+		info.HasBody = true
+	case "form-data":
+		info.ContentType = "multipart/form-data"
+		info.HasBody = true
+		var fields []string
+		for _, kv := range opts.Body.FormData {
+			if kv.Key == "" {
+				continue
+			}
+			if kv.Type == "file" {
+				path := subst(kv.Value)
+				size := int64(0)
+				if fi, err := os.Stat(path); err == nil {
+					size = fi.Size()
+				}
+				info.Files = append(info.Files, FileInfo{Path: path, Size: size})
+			} else {
+				fields = append(fields, subst(kv.Key)+"="+subst(kv.Value))
+			}
+		}
+		info.Body = strings.Join(fields, "&")
+	}
+
+	// Content-Type 头。
+	if info.ContentType != "" {
+		info.Headers = append(info.Headers, model.KeyValue{Key: "Content-Type", Value: info.ContentType, Enabled: true})
+	}
+
+	return info
 }
 
 // Do 根据 opts 构建并执行一个 HTTP 请求，返回结果。

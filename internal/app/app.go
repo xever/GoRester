@@ -113,7 +113,8 @@ type projectSession struct {
 	sendOpts httpclient.RequestOptions
 	sendMu   sync.Mutex
 	sending  bool
-	response *httpclient.Result // 最近一次响应（供展示）
+	response *httpclient.Result     // 最近一次响应（供展示）
+	lastReq  httpclient.RequestInfo // 最近一次实际发送的请求（供「请求」标签展示）
 
 	// 响应体渲染缓存（语法高亮后的行）。
 	respLines       []highlight.Line

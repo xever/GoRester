@@ -26,7 +26,7 @@ var (
 
 	// todo 标签bodyFormatLabels改名x-www为简写，小心后面格式出错
 	reqTabNames      = []string{"Params", "Body", "Cookie", "Header", "Auth"}
-	respTabNames     = []string{"Body", "Cookie", "Header"}
+	respTabNames     = []string{"Body", "Cookie", "Header", "请求"}
 	bodyFormatLabels = []string{"none", "form-data", "form-urlencoded", "json", "xml", "raw"}
 	bodyFormatModes  = []string{"none", "form-data", "x-www-form-urlencoded", "json", "xml", "raw"}
 	methodStrings    = []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
@@ -35,7 +35,7 @@ var (
 	// 各 Tab / 下拉框的下标切片（提为包级变量，避免每次 paint 重新分配）。
 	reqTabIndices     = []int{0, 1, 2, 3, 4}
 	bodyFormatIndices = []int{0, 1, 2, 3, 4, 5}
-	respTabIndices    = []int{0, 1, 2}
+	respTabIndices    = []int{0, 1, 2, 3}
 	prettyIndices     = []int{0, 1}
 
 	// 下拉框选项。
@@ -402,6 +402,8 @@ func (s *projectSession) doSend() {
 		s.app.toaster.Show("无法发送", "请先选择 HTTP 方法", ui.ToastError)
 		return
 	}
+	// 记录本次实际发送的请求（用于「请求」标签展示）。
+	s.lastReq = s.client.Describe(opts)
 	s.sendMu.Lock()
 	s.sendOpts = opts
 	s.sendMu.Unlock()
@@ -770,8 +772,66 @@ func (s *projectSession) responsePanel(c ui.C) {
 				s.responseKVs(c, s.responseCookies())
 			case 2:
 				s.responseKVs(c, s.responseHeaders())
+			case 3:
+				s.requestView(c, theme)
 			}
 		})
+	})
+}
+
+// requestView 渲染「实际请求」：最近一次实际发送的请求的方法、URL、请求头与请求体。
+func (s *projectSession) requestView(c ui.C, theme gfx.Theme) {
+	if s.lastReq.Method == "" {
+		ui.Column(c).Fill().Items(ui.Center).Justify(ui.Center).Children(func() {
+			ui.Text(c, "尚未发送请求").Muted()
+		})
+		return
+	}
+	ui.Column(c).Fill().Pad(16).Gap(8).Children(func() {
+		// —— 方法 + URL ——
+		ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
+			methodBadge(c, s.lastReq.Method)
+			ui.Text(c, s.lastReq.Method).Color(methodColor(s.lastReq.Method)).Weight(gfx.WeightSemibold)
+			ui.Text(c, s.lastReq.URL).Mono().FontSize(13)
+		})
+
+		ui.Divider(c)
+
+		// —— 请求头 ——
+		ui.Text(c, "请求头").Weight(gfx.WeightSemibold)
+		if len(s.lastReq.Headers) == 0 {
+			ui.Text(c, "(无)").Muted()
+		} else {
+			for _, h := range s.lastReq.Headers {
+				ui.Row(c).Gap(12).Children(func() {
+					ui.Text(c, h.Key).Mono().FontSize(12).Weight(gfx.WeightMedium).Width(200)
+					ui.Text(c, h.Value).Mono().FontSize(12)
+				})
+			}
+		}
+
+		ui.Divider(c)
+
+		// —— 请求体 ——
+		ui.Text(c, "请求体").Weight(gfx.WeightSemibold)
+		if !s.lastReq.HasBody {
+			ui.Text(c, "(无请求体)").Muted()
+			return
+		}
+		if s.lastReq.ContentType != "" {
+			ui.Text(c, "类型："+s.lastReq.ContentType).Muted().Small()
+		}
+		// 有文件时显示文件路径与大小。
+		for _, f := range s.lastReq.Files {
+			ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
+				ui.Icon(c, iconFile).Color(theme.MutedForeground)
+				ui.Text(c, f.Path).Mono().FontSize(12)
+				ui.Text(c, humanBytes(int(f.Size))).Muted().Small()
+			})
+		}
+		if s.lastReq.Body != "" {
+			ui.Text(c, s.lastReq.Body).Mono().FontSize(12)
+		}
 	})
 }
 
