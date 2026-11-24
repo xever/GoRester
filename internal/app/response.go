@@ -32,9 +32,9 @@ func (s *projectSession) responsePanel(c ui.C) {
 			ui.Spacer(c).Grow(1)
 
 			// 左侧工具栏：格式化 / 语言 / 编码下拉。
-			ui.Select(c, &s.respFormat, prettyIndices, prettyLabel).Width(90).Label(i18n.T("response.format"))
-			ui.Select(c, &s.respLang, langOptions, langLabel).Width(80).Label(i18n.T("response.language"))
-			ui.Select(c, &s.respEncoding, encodingOptions, identityLabel).Width(80).Label(i18n.T("response.encoding"))
+			// ui.Select(c, &s.respFormat, prettyIndices, prettyLabel).Width(90).Label(i18n.T("response.format"))
+			// ui.Select(c, &s.respLang, langOptions, langLabel).Width(80).Label(i18n.T("response.language"))
+			// ui.Select(c, &s.respEncoding, encodingOptions, identityLabel).Width(80).Label(i18n.T("response.encoding"))
 
 			// 右侧工具图标：提取 / 下载 / 复制 / 搜索。
 			if ui.Button(c, i18n.T("response.extract")).Icon(iconBookmark).IconOnly().Ghost().Small().Clicked() {

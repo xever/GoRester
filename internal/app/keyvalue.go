@@ -16,10 +16,11 @@ import (
 
 // 列宽常量（保证各行对齐）。
 const (
-	kvKeyWidth   = 180.0
-	kvValueWidth = 220.0
-	kvTypeWidth  = 90.0
-	kvDescWidth  = 180.0
+	checkboxWidth = 20.0
+	kvKeyWidth    = 130.0
+	kvValueWidth  = 220.0
+	kvTypeWidth   = 90.0
+	kvDescWidth   = 220.0
 )
 
 // kvColumns 描述一张键值对表要显示哪些列。
@@ -33,13 +34,13 @@ type kvColumns struct {
 func (s *projectSession) kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
 	// —— 表头 ——
 	ui.Row(c).Gap(8).PadBottom(4).Children(func() {
-		ui.Spacer(c).Width(20) // 复选框占位
+		ui.Spacer(c).Width(10) // 复选框占位
 		ui.Text(c, i18n.T("kv.name")).Muted().Small().Width(kvKeyWidth)
 		if cols.withType {
 			ui.Text(c, i18n.T("kv.type")).Muted().Small().Width(kvTypeWidth)
 		}
 		ui.Text(c, cols.valueLabel).Muted().Small().Width(kvValueWidth)
-		ui.Text(c, i18n.T("kv.description")).Muted().Small().Width(kvDescWidth)
+		ui.Text(c, i18n.T("kv.description")).Muted().Small().MinWidth(kvDescWidth)
 		ui.Spacer(c).Width(56) // 必填 + 删除按钮占位
 	})
 
@@ -67,12 +68,14 @@ func (s *projectSession) kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool 
 	deleted := false
 	ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
 		// 启用开关。
-		ui.Checkbox(c, &kv.Enabled, "")
+		ui.Checkbox(c, &kv.Enabled, "").Width(checkboxWidth)
 		// 参数名。
-		ui.TextField(c, &kv.Key, i18n.T("kv.name"), "key").Width(kvKeyWidth)
+		ui.TextField(c, &kv.Key, i18n.T("kv.name"), "key").
+			MinWidth(kvKeyWidth).MaxWidth(kvKeyWidth * 2)
 		// 类型（可选列）。
 		if cols.withType {
-			ui.Select(c, &kv.Type, formFieldTypes, identityLabel).Width(kvTypeWidth).Label(i18n.T("kv.type"))
+			ui.Select(c, &kv.Type, formFieldTypes, identityLabel).
+				Width(kvTypeWidth).Label(i18n.T("kv.type"))
 		}
 		// 值 / 示例值。
 		valueField := ui.TextField(c, &kv.Value, cols.valueLabel, "value").Width(kvValueWidth)
@@ -96,8 +99,8 @@ func (s *projectSession) kvRow(c ui.C, kv *model.KeyValue, cols kvColumns) bool 
 		if cols.withType {
 			ui.Checkbox(c, &kv.Required, "*").Tooltip(i18n.T("kv.required"))
 		}
-		// 删除。
-		if ui.Button(c, i18n.T("common.delete")).Icon(iconTrash).IconOnly().Ghost().Small().Clicked() {
+		// 删除。只留图标，去掉i18n.T("common.delete")
+		if ui.Button(c, "").Icon(iconTrash).IconOnly().Ghost().Small().Clicked() {
 			deleted = true
 		}
 	})

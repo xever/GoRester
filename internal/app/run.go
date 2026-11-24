@@ -229,8 +229,8 @@ func Run() {
 	m.initLanguage()
 	cfg := vivaapp.Config{
 		Title:     "GoRester",
-		Width:     1280,
-		Height:    820,
+		Width:     1120,
+		Height:    680,
 		MinWidth:  960,
 		MinHeight: 600,
 	}
