@@ -31,17 +31,18 @@ func (s *projectSession) openEnvDrawer() {
 
 // 环境设置窗体样式
 func (s *projectSession) envDrawer(c ui.C) {
-	ui.Drawer(c, &s.envDrawerOpen, i18n.T("dialog.envManage"), ui.DrawerSpec{Size: 480},
+	ui.Drawer(c, &s.envDrawerOpen, i18n.T("dialog.envManage"), ui.DrawerSpec{Size: 440},
 		func() {
 			ui.Scroll(c).Fill().Pad(16).Children(func() {
 				ui.Column(c).Gap(12).Children(func() {
 					// —— 环境选择 / 增删 ——
 					ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
 						envs := s.project.Environments
-						sel := ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Grow(1).Label(i18n.T("dialog.selectEnv"))
+						sel := ui.Select(c, &s.envIndex, s.envIndices(), s.envLabelFn).Grow(1).MaxWidth(220).Label(i18n.T("dialog.selectEnv"))
 						if sel.Changed() {
 							s.syncEnvSnapshots()
 						}
+						ui.Spacer(c)
 						if ui.Button(c, i18n.T("dialog.addEnv")).Icon(iconPlus).Ghost().Small().Clicked() {
 							s.project.Environments = append(s.project.Environments, &model.Environment{Name: i18n.T("dialog.newEnv"), Vars: map[string]string{}, Headers: map[string]string{}, TimeoutMs: model.DefaultTimeoutMs})
 							s.envIndex = len(s.project.Environments) - 1
