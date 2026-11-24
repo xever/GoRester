@@ -177,7 +177,7 @@ func NewProject(name, description string) *Project {
 		Description: description,
 		Environments: []*Environment{
 			{
-				Name:      i18n.T("model.devEnv"),
+				Name:      i18n.T("model.testEnv"),
 				BaseURL:   "",
 				Vars:      map[string]string{},
 				Headers:   map[string]string{},

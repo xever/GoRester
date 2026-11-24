@@ -33,15 +33,21 @@ type kvColumns struct {
 // rows 是 *[]model.KeyValue，直接修改它即可。
 func (s *projectSession) kvEditor(c ui.C, rows *[]model.KeyValue, cols kvColumns) {
 	// —— 表头 ——
-	ui.Row(c).Gap(8).PadBottom(4).Children(func() {
-		ui.Spacer(c).Width(10) // 复选框占位
-		ui.Text(c, i18n.T("kv.name")).Muted().Small().Width(kvKeyWidth)
+	// 列宽与 kvRow 的输入框一一对应。Spacer 会吸收剩余空间，占位不能用它，
+	// 否则窗口变化时表头会被推到右边；用固定宽度的 Label 占位，并禁止文字收缩，
+	// 这样表头与数据行始终对齐。
+	ui.Row(c).Gap(8).Items(ui.Center).PadBottom(4).Children(func() {
+		ui.Label(c, "").Width(checkboxWidth) // 复选框列占位
+		ui.Text(c, i18n.T("kv.name")).Muted().Small().Width(kvKeyWidth).Shrink(0).TextCenter()
 		if cols.withType {
-			ui.Text(c, i18n.T("kv.type")).Muted().Small().Width(kvTypeWidth)
+			ui.Text(c, i18n.T("kv.type")).Muted().Small().Width(kvTypeWidth).Shrink(0).TextCenter()
 		}
-		ui.Text(c, cols.valueLabel).Muted().Small().Width(kvValueWidth)
-		ui.Text(c, i18n.T("kv.description")).Muted().Small().MinWidth(kvDescWidth)
-		ui.Spacer(c).Width(56) // 必填 + 删除按钮占位
+		ui.Text(c, cols.valueLabel).Muted().Small().Width(kvValueWidth).Shrink(0).TextCenter()
+		ui.Text(c, i18n.T("kv.description")).Muted().Small().Width(kvDescWidth).Shrink(0).TextCenter()
+		if cols.withType {
+			ui.Label(c, "").Width(20) // 「必填」复选框占位
+		}
+		ui.Label(c, "").Width(36) // 删除按钮占位
 	})
 
 	// —— 数据行 ——
