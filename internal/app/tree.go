@@ -5,7 +5,9 @@ package app
 // 弹窗与 OpenAPI 导入导出。
 
 import (
+	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/vivaui/viva/gfx"
 	"github.com/vivaui/viva/ui"
@@ -203,8 +205,9 @@ func (s *projectSession) contentAt(i int) {
 		}
 	})
 
-	// 右键菜单。
+	// 右键菜单。任何节点都可以重命名；删除统一走确认弹窗，并放在菜单最下方。
 	ui.ContextMenu(c, row, func(menu *ui.MenuItems) {
+
 		switch e.kind {
 		case nodeFolder:
 			if menu.Item(i18n.T("sidebar.newInterface")).Clicked() {
@@ -215,22 +218,33 @@ func (s *projectSession) contentAt(i int) {
 				s.newFolderParent = e.id
 				s.newFolderOpen = true
 			}
-			if menu.Item(i18n.T("sidebar.deleteFolder")).Clicked() {
-				s.deleteFolder(e.folder)
-			}
 		case nodeInterface:
-			if menu.Item(i18n.T("sidebar.deleteInterface")).Clicked() {
-				s.deleteInterface(e.iface)
-			}
 			if menu.Item(i18n.T("sidebar.saveAsCase")).Clicked() {
 				s.saveCaseName = ""
 				s.saveCaseTarget = e.iface
 				s.saveCaseOpen = true
 			}
+		}
+
+		//重命名放下面，新加最上面 适合操作
+		if menu.Item(i18n.T("common.rename")).Clicked() {
+			s.startRename(e)
+		}
+		// 删除放最后，用分隔线与上面的操作分开。
+		if e.kind != nodeCase {
+			menu.Separator()
+		}
+		var label string
+		switch e.kind {
+		case nodeFolder:
+			label = i18n.T("sidebar.deleteFolder")
+		case nodeInterface:
+			label = i18n.T("sidebar.deleteInterface")
 		case nodeCase:
-			if menu.Item(i18n.T("sidebar.deleteCase")).Clicked() {
-				s.deleteCase(e.iface, e.case_)
-			}
+			label = i18n.T("sidebar.deleteCase")
+		}
+		if menu.Item(label).Destructive().Clicked() {
+			s.confirmDelete(e)
 		}
 	})
 }
@@ -369,4 +383,154 @@ func (s *projectSession) saveCurrent() {
 	case tabCase:
 		s.persist()
 	}
+}
+
+// ---------------------------------------------------------------------------
+// 树节点删除确认 / 重命名弹窗（由 tree.go 的右键菜单触发）
+// ---------------------------------------------------------------------------
+
+// confirmDelete 记录待删除的树节点，弹出确认框。
+func (s *projectSession) confirmDelete(e treeEntry) {
+	s.deleteConfirmTarget = e
+	s.deleteConfirmOpen = true
+}
+
+// deleteConfirmModal 在真正执行删除前请用户确认。
+func (s *projectSession) deleteConfirmModal(c ui.C) {
+	if !s.deleteConfirmOpen {
+		return
+	}
+	e := s.deleteConfirmTarget
+	// 弹窗打开期间节点可能已被别处删掉，避免误删或空指针。
+	if !s.nodeStillExists(e) {
+		s.deleteConfirmOpen = false
+		return
+	}
+	title, desc := deleteConfirmText(e)
+	ui.ModalWith(c, &s.deleteConfirmOpen, title, ui.ModalSpec{Description: desc}, nil,
+		func() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
+				s.deleteConfirmOpen = false
+			}
+			if ui.Button(c, i18n.T("common.delete")).Destructive().Clicked() {
+				s.deleteConfirmOpen = false
+				s.deleteNode(e)
+			}
+		},
+	)
+}
+
+// deleteConfirmText 返回对应节点类型的确认标题与说明。
+func deleteConfirmText(e treeEntry) (string, string) {
+	switch e.kind {
+	case nodeFolder:
+		return i18n.T("dialog.confirmDeleteFolder"), fmt.Sprintf(i18n.T("dialog.confirmDeleteFolderDesc"), e.name)
+	case nodeInterface:
+		return i18n.T("dialog.confirmDeleteInterface"), fmt.Sprintf(i18n.T("dialog.confirmDeleteInterfaceDesc"), e.name)
+	case nodeCase:
+		return i18n.T("dialog.confirmDeleteCase"), fmt.Sprintf(i18n.T("dialog.confirmDeleteCaseDesc"), e.name)
+	}
+	return i18n.T("dialog.confirmDelete"), fmt.Sprintf(i18n.T("dialog.confirmDeleteDesc"), e.name)
+}
+
+// deleteNode 按节点种类执行真正的删除（实现在 tree.go）。
+func (s *projectSession) deleteNode(e treeEntry) {
+	switch e.kind {
+	case nodeFolder:
+		s.deleteFolder(e.folder)
+	case nodeInterface:
+		s.deleteInterface(e.iface)
+	case nodeCase:
+		s.deleteCase(e.iface, e.case_)
+	}
+}
+
+// nodeStillExists 检查弹窗记录的节点是否还在项目里。
+func (s *projectSession) nodeStillExists(e treeEntry) bool {
+	switch e.kind {
+	case nodeFolder:
+		return e.folder != nil && s.project.FindFolder(e.id) != nil
+	case nodeInterface:
+		return e.iface != nil && s.project.FindInterface(e.id) != nil
+	case nodeCase:
+		return e.case_ != nil && s.project.FindCase(e.id) != nil
+	}
+	return false
+}
+
+// startRename 记录待重命名的树节点，打开重命名弹窗（文件夹 / 接口 / 用例通用）。
+func (s *projectSession) startRename(e treeEntry) {
+	s.renameTarget = e
+	s.renameField.SetText(e.name)
+	// 默认全选原名称，直接输入即可替换。
+	s.renameField.Select(0, utf8.RuneCountInString(e.name))
+	s.renameOpen = true
+}
+
+// renameModal 渲染重命名弹窗。
+func (s *projectSession) renameModal(c ui.C) {
+	if !s.renameOpen {
+		return
+	}
+	e := s.renameTarget
+	if !s.nodeStillExists(e) {
+		s.renameOpen = false
+		return
+	}
+	ui.Modal(c, &s.renameOpen, i18n.T("common.rename"),
+		func() {
+			field := ui.TextField(c, &s.renameField, i18n.T("dialog.renameName"), i18n.T("dialog.renameNamePlaceholder"))
+			field.FillWidth().AutoFocus()
+			if field.Submitted() { // 回车即提交
+				s.commitRename()
+			}
+		},
+		func() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
+				s.renameOpen = false
+			}
+			if ui.Button(c, i18n.T("common.rename")).Clicked() {
+				s.commitRename()
+			}
+		},
+	)
+}
+
+// commitRename 把新名字写回节点，并同步已打开的工作区标签标题。
+func (s *projectSession) commitRename() {
+	name := strings.TrimSpace(s.renameField.Text())
+	if name == "" {
+		return
+	}
+	e := s.renameTarget
+	switch e.kind {
+	case nodeFolder:
+		if e.folder == nil {
+			return
+		}
+		e.folder.Name = name
+	case nodeInterface:
+		if e.iface == nil {
+			return
+		}
+		e.iface.Name = name
+		for _, t := range s.workTabs {
+			if t.kind == tabInterface && t.iface == e.iface {
+				t.name = name
+			}
+		}
+	case nodeCase:
+		if e.case_ == nil {
+			return
+		}
+		e.case_.Name = name
+		for _, t := range s.workTabs {
+			if t.kind == tabCase && t.case_ == e.case_ {
+				t.name = name
+			}
+		}
+	}
+	s.renameOpen = false
+	s.markTreeDirty()
+	s.persist()
 }

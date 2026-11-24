@@ -1,7 +1,8 @@
 package app
 
 // 本文件是左侧栏的外壳布局、OpenAPI 导入导出，以及新建文件夹/保存接口/
-// 保存为用例弹窗。树的渲染、搜索过滤、右键增删与持久化都在 tree.go。
+// 保存为用例/删除确认/重命名弹窗。树的渲染、搜索过滤、右键菜单与持久化
+// 都在 tree.go。
 
 import (
 	"os"
@@ -122,6 +123,8 @@ func (s *projectSession) dialogs(c ui.C) {
 	s.newFolderModal(c)
 	s.saveDialog(c)
 	s.saveCaseModal(c)
+	s.deleteConfirmModal(c)
+	s.renameModal(c)
 	s.envDrawer(c)
 }
 

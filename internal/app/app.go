@@ -185,6 +185,13 @@ type projectSession struct {
 	saveCaseName    string
 	saveCaseTarget  *model.Interface // 要另存为用例的接口
 
+	// —— 树节点删除确认 / 重命名 ——
+	deleteConfirmOpen   bool
+	deleteConfirmTarget treeEntry // 待删除的节点（值拷贝，持有节点指针）
+	renameOpen          bool
+	renameTarget        treeEntry // 待重命名的节点（值拷贝，持有节点指针）
+	renameField         ui.Field  // 重命名输入框（打开时预填并全选原名称）
+
 	// —— 环境抽屉 ——
 	envDrawerOpen     bool
 	envEditIndex      int // 抽屉里正在编辑的环境下标
