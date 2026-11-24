@@ -1,10 +1,11 @@
 package app
 
 // 本文件放与界面/业务无关的通用小工具：键值切片深拷贝、HTTP 状态码描述、
-// 字节数格式化。它们被请求、响应、弹窗等多处复用，因此单独拎出来。
+// 字节数格式化，以及响应内容的高亮搜索切分。它们被多处复用，因此单独拎出来。
 
 import (
 	"fmt"
+	"strings"
 
 	"gorester/internal/model"
 )
@@ -70,4 +71,40 @@ func humanBytes(n int) string {
 	default:
 		return fmt.Sprintf("%d B", n)
 	}
+}
+
+// searchPart 是响应内容里被搜索拆出的一段：text 为文本，matched 表示是否命中关键字。
+type searchPart struct {
+	text    string
+	matched bool
+}
+
+// splitSearch 把 text 按 needle（大小写不敏感）拆成命中/未命中的片段。
+func splitSearch(text, needle string) []searchPart {
+	if needle == "" {
+		return []searchPart{{text: text}}
+	}
+	lower := strings.ToLower(text)
+	lowerNeedle := strings.ToLower(needle)
+	var parts []searchPart
+	start := 0
+	for start <= len(text) {
+		rel := strings.Index(lower[start:], lowerNeedle)
+		if rel < 0 {
+			if start < len(text) {
+				parts = append(parts, searchPart{text: text[start:]})
+			}
+			break
+		}
+		idx := start + rel
+		if idx > start {
+			parts = append(parts, searchPart{text: text[start:idx]})
+		}
+		parts = append(parts, searchPart{text: text[idx : idx+len(needle)], matched: true})
+		start = idx + len(needle)
+	}
+	if len(parts) == 0 {
+		return []searchPart{{text: text}}
+	}
+	return parts
 }

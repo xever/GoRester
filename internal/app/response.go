@@ -196,42 +196,6 @@ func (s *projectSession) renderBodyLines(c ui.C, lines []highlight.Line, theme g
 	}).Grow(1)
 }
 
-// searchPart 是响应内容里被搜索拆出的一段：text 为文本，matched 表示是否命中关键字。
-type searchPart struct {
-	text    string
-	matched bool
-}
-
-// splitSearch 把 text 按 needle（大小写不敏感）拆成命中/未命中的片段。
-func splitSearch(text, needle string) []searchPart {
-	if needle == "" {
-		return []searchPart{{text: text}}
-	}
-	lower := strings.ToLower(text)
-	lowerNeedle := strings.ToLower(needle)
-	var parts []searchPart
-	start := 0
-	for start <= len(text) {
-		rel := strings.Index(lower[start:], lowerNeedle)
-		if rel < 0 {
-			if start < len(text) {
-				parts = append(parts, searchPart{text: text[start:]})
-			}
-			break
-		}
-		idx := start + rel
-		if idx > start {
-			parts = append(parts, searchPart{text: text[start:idx]})
-		}
-		parts = append(parts, searchPart{text: text[idx : idx+len(needle)], matched: true})
-		start = idx + len(needle)
-	}
-	if len(parts) == 0 {
-		return []searchPart{{text: text}}
-	}
-	return parts
-}
-
 // responseKVs 渲染响应 Header / Cookie 键值对（只读展示）。
 func (s *projectSession) responseKVs(c ui.C, kvs []model.KeyValue) {
 	if len(kvs) == 0 {
@@ -269,6 +233,19 @@ func (s *projectSession) responseCookies() []model.KeyValue {
 		}
 	}
 	return out
+}
+
+// responseContentType 从响应头里提取 Content-Type。
+func (s *projectSession) responseContentType() string {
+	if s.response == nil {
+		return ""
+	}
+	for _, h := range s.response.Headers {
+		if strings.EqualFold(h.Key, "Content-Type") {
+			return h.Value
+		}
+	}
+	return ""
 }
 
 // findNext 在响应体里查找关键字并滚动到第一个匹配行。
