@@ -374,8 +374,9 @@ func (s *projectSession) saveCurrent() {
 	switch tab.kind {
 	case tabInterface:
 		if tab.isNew {
-			// 新接口：弹窗选择名字与目标文件夹。
+			// 新接口：弹窗选择名字与目标文件夹，默认定位到新建时指定的文件夹。
 			s.saveName = tab.iface.Name
+			s.saveParent = s.folderPathByID(tab.parentID)
 			s.saveDialogOpen = true
 			return
 		}

@@ -201,6 +201,21 @@ func (s *projectSession) commitSaveDialog() {
 	s.persist()
 }
 
+// folderPathByID 返回文件夹 ID 对应的完整路径（供「目标文件夹」下拉框预选）。
+// 空 ID 或找不到时返回根目录路径。
+func (s *projectSession) folderPathByID(id string) string {
+	targets := s.project.FolderTargets()
+	if len(targets) == 0 {
+		return ""
+	}
+	for _, t := range targets {
+		if id != "" && t.Folder != nil && t.Folder.ID == id {
+			return t.Path
+		}
+	}
+	return targets[0].Path
+}
+
 // folderPicker 渲染一个「目标文件夹」下拉框。
 func (s *projectSession) folderPicker(c ui.C, selected *string) {
 	targets := s.project.FolderTargets()

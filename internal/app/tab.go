@@ -124,8 +124,11 @@ func (s *projectSession) createNewInterfaceDraft(parentID string) {
 		Headers: []model.KeyValue{{Enabled: true}},
 		Cookies: []model.KeyValue{},
 	}
-	s.draftParent = parentID
 	s.openInterfaceTab(iface, true)
+	// 记住新建时指定的文件夹（右键文件夹 / 选中节点新建），保存时预填。
+	if tab := s.currentTab(); tab != nil {
+		tab.parentID = parentID
+	}
 }
 
 // closeWorkTab 关闭一个工作区标签页。

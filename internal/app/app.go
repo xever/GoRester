@@ -102,7 +102,7 @@ type workTab struct {
 	name  string // 标签页标题
 	isNew bool   // 是否为「尚未保存的新接口」
 
-	parentID string           // 用例所属接口的 ID（仅 tabCase 用）
+	parentID string           // tabCase 为所属接口 ID；tabInterface 草稿为目标文件夹 ID
 	iface    *model.Interface // tabInterface 的编辑对象
 	case_    *model.Case      // tabCase 的编辑对象
 }
@@ -180,7 +180,6 @@ type projectSession struct {
 	saveDialogOpen  bool   // 保存「新接口」时选择名字与文件夹
 	saveName        string
 	saveParent      string
-	draftParent     string // 新建接口草稿的默认目标文件夹 ID
 	saveCaseOpen    bool
 	saveCaseName    string
 	saveCaseTarget  *model.Interface // 要另存为用例的接口
