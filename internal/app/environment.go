@@ -19,6 +19,9 @@ import (
 // ---------------------------------------------------------------------------
 // 环境管理抽屉
 // ---------------------------------------------------------------------------
+const (
+	envNameWidth = 90.0
+)
 
 // openEnvDrawer 打开环境抽屉并同步编辑快照。
 func (s *projectSession) openEnvDrawer() {
@@ -56,9 +59,19 @@ func (s *projectSession) envDrawer(c ui.C) {
 					// —— 当前环境基础配置 ——
 					if env := s.currentEnv(); env != nil {
 						ui.Text(c, i18n.T("dialog.basic")).Weight(gfx.WeightSemibold)
-						ui.TextField(c, &env.Name, i18n.T("dialog.envName"), "").FillWidth()
-						ui.TextField(c, &env.BaseURL, i18n.T("dialog.baseURL"), i18n.T("dialog.baseURLPlaceholder")).FillWidth()
-						ui.TextField(c, &s.envTimeoutEdit, i18n.T("dialog.timeout"), "30").FillWidth()
+						// 表单文字放在输入框左侧：TextField 的 Label 参数只是无障碍标签，并不绘制出来。
+						ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
+							ui.Label(c, i18n.T("dialog.envName")).Width(envNameWidth).MarginLeft(20)
+							ui.TextField(c, &env.Name, i18n.T("dialog.envName"), "").Grow(1)
+						})
+						ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
+							ui.Label(c, i18n.T("dialog.baseURL")).Width(envNameWidth).MarginLeft(20)
+							ui.TextField(c, &env.BaseURL, i18n.T("dialog.baseURL"), i18n.T("dialog.baseURLPlaceholder")).Grow(1)
+						})
+						ui.Row(c).Gap(8).Items(ui.Center).Children(func() {
+							ui.Label(c, i18n.T("dialog.timeout")).Width(envNameWidth).MarginLeft(20)
+							ui.TextField(c, &s.envTimeoutEdit, i18n.T("dialog.timeout"), "30").Tooltip(i18n.T("dialog.timeout.tip")).Grow(1)
+						})
 
 						ui.Divider(c)
 						ui.Text(c, i18n.T("dialog.envVars")).Weight(gfx.WeightSemibold)

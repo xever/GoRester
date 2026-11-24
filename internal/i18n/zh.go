@@ -171,6 +171,7 @@ func init() {
 		"dialog.baseURL":                  "Base URL",
 		"dialog.baseURLPlaceholder":       "https://api.example.com",
 		"dialog.timeout":                  "默认耗时（秒）",
+		"dialog.timeout.tip":              "默认耗时（秒）",
 		"dialog.envVars":                  "环境变量",
 		"dialog.envHeaders":               "环境 Header",
 		"dialog.globalVars":               "全局变量",
