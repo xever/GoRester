@@ -4,8 +4,8 @@
 # 显示名；打包 macOS 时也用作 .app 名称。
 name = "GoRester"
 # 反向域名风格的包标识。
-id = "dev.gorester"
-version = "0.1.0"
+id = "dev.xever.gorester"
+version = "0.3.0"
 # 生成的可执行文件名。
 executable = "gorester"
 # 主包路径。

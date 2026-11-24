@@ -16,35 +16,7 @@ import (
 	"gorester/resource"
 )
 
-// ---------------------------------------------------------------------------
-// 顶层状态
-// ---------------------------------------------------------------------------
-
-// appModel 是整个应用的顶层状态，持有项目列表和已打开的标签页。
-type appModel struct {
-	projects []storage.ProjectMeta // 主页展示的项目摘要
-	tabs     []*projectSession     // 已打开的项目标签页
-	active   int                   // 当前标签页下标，-1 表示主页
-
-	// 主页「新建项目」弹窗。
-	newProjectOpen bool
-	newName        string
-	newDesc        string
-
-	// 全局设置弹窗与界面语言偏好。langPref 为 "" 表示跟随系统。
-	settingsOpen bool
-	settingsLang string
-	langPref     string
-	langMenuOpen bool // 右上角地球图标的语言快捷菜单
-
-	toaster ui.Toaster // 全局轻提示
-
-	// application 是运行中的应用（RunApplication 启动回调里保存），用于把
-	// 会阻塞的操作（文件对话框等）投递到本轮绘制之后执行。
-	application *vivaapp.Application
-	// inv 用于后台工作完成后请求一次重绘。
-	inv vivaapp.Invalidator
-}
+// 状态类型定义见 app.go；本文件负责应用生命周期与顶层页面。
 
 // post 把 fn 投递到事件循环线程执行（在本轮绘制结束之后），用于文件对话框等
 // 会阻塞当前线程的操作，避免在绘制过程中重入。无 application（例如测试）时
@@ -60,13 +32,6 @@ func (m *appModel) post(fn func()) {
 // invalidate 请求一次重绘（后台工作改完状态后调用）。
 func (m *appModel) invalidate() {
 	m.inv.Invalidate()
-}
-
-// newAppModel 创建应用状态，并加载磁盘上已有的项目列表。
-func newAppModel() *appModel {
-	m := &appModel{active: -1, langPref: storage.LoadPreferences().Language}
-	m.reloadProjects()
-	return m
 }
 
 // reloadProjects 重新扫描 ~/gorester/，刷新主页项目列表。

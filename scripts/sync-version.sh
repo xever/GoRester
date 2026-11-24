@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 从 viva.toml 的 [app].version 生成 internal/app/version_generated.go。
+# 从 viva.toml 的 [app].version 生成 internal/app/version.go。
 # build.sh / package-win.sh / package-mac.sh 在构建前都会调用，
 # 避免设置抽屉里显示的版本号与打包清单不一致。
 #
@@ -15,7 +15,7 @@ if [ -z "$version" ]; then
 	exit 1
 fi
 
-cat > internal/app/version_generated.go <<EOF
+cat > internal/app/version.go <<EOF
 // Code generated from viva.toml by scripts/sync-version.sh. DO NOT EDIT.
 
 package app

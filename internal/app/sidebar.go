@@ -1,50 +1,24 @@
 package app
 
-// 本文件是项目左侧边栏：接口管理区。
-// 顶部有搜索框、过滤按钮、新建按钮；下方是接口目录树；最右侧有导入导出。
+// 本文件是左侧栏的外壳布局、OpenAPI 导入导出，以及新建文件夹/保存接口/
+// 保存为用例弹窗。树的渲染、搜索过滤、右键增删与持久化都在 tree.go。
 
 import (
-	"github.com/vivaui/viva/gfx"
+	"os"
+	"strings"
+
+	vivaapp "github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/ui"
 
 	"gorester/internal/i18n"
+	"gorester/internal/model"
+	"gorester/internal/openapi"
 )
-
-// methodBadge 渲染一个带字母的方法徽标（圆形小方块），颜色随方法变化。
-func methodBadge(c ui.C, method string) {
-	ui.Text(c, methodLetter(method)).
-		Color(gfx.RGB(255, 255, 255)).
-		Background(methodColor(method)).
-		Size(20, 20).
-		Radius(4).
-		TextCenter().
-		Weight(gfx.WeightSemibold).
-		FontSize(11)
-}
 
 // sidebar 渲染左侧接口管理区。
 func (s *projectSession) sidebar(c ui.C) {
 	// —— 顶部：搜索 + 过滤 ——
-	ui.Row(c).Pad(12).PadBottom(8).Gap(8).Items(ui.Center).Children(func() {
-		search := ui.TextField(c, &s.sidebarSearch, i18n.T("common.search"), i18n.T("sidebar.searchPlaceholder")).Icon(iconSearch).Grow(1)
-		if search.Changed() {
-			s.markTreeDirty()
-		}
-
-		// 过滤按钮（漏斗）：按方法过滤。
-		filterBtn := ui.Button(c, i18n.T("common.filter")).Icon(iconFilter).IconOnly().Ghost()
-		if filterBtn.Clicked() {
-			s.filterMenuOpen = !s.filterMenuOpen
-		}
-		ui.Menu(c, filterBtn, &s.filterMenuOpen, func(menu *ui.MenuItems) {
-			for i, method := range filterMethods {
-				if menu.Item(filterMethodLabel(i)).Clicked() {
-					s.sidebarFilter = method
-					s.markTreeDirty()
-				}
-			}
-		})
-	})
+	s.treeSearchBar(c)
 
 	// —— 新建 + 导入导出 ——
 	ui.Row(c).PadX(12).PadBottom(8).Gap(8).Items(ui.Center).Children(func() {
@@ -79,105 +53,213 @@ func (s *projectSession) sidebar(c ui.C) {
 	ui.Divider(c)
 
 	// —— 目录树 ——
-	if s.treeDirty {
-		s.rebuildTree()
-	}
-	if len(s.flat) == 0 {
-		ui.Column(c).Grow(1).Items(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Text(c, i18n.T("sidebar.empty")).Muted()
-			ui.Text(c, i18n.T("sidebar.emptyHint")).Muted().Small()
-		})
-		return
-	}
-
-	ui.Tree(c, &s.tree, len(s.flat), s.labelFn, s.contentFn).Grow(1).Label(i18n.T("sidebar.tree"))
-
-	// 处理展开 / 收起。
-	if i, ok := s.tree.Toggled(); ok && i < len(s.flat) {
-		e := s.flat[i]
-		if e.kind == nodeFolder || e.kind == nodeInterface {
-			s.expanded[e.id] = !s.expanded[e.id]
-			s.markTreeDirty()
-		}
-	}
-	// 处理点击选中。
-	if i, ok := s.tree.Chosen(); ok && i < len(s.flat) {
-		s.selectEntry(s.flat[i])
-	}
+	s.treeView(c)
 }
 
-// contentAt 渲染树的一行内容。
-// 注意：这里从 TreeState 取当前 paint 的 C（Tree 在声明期间会临时保存它，
-// 内容回调就在这个窗口内被调用），而不是把 C 存进自己的结构体。
-func (s *projectSession) contentAt(i int) {
-	if i < 0 || i >= len(s.flat) {
+// ---------------------------------------------------------------------------
+// OpenAPI 导入导出（由侧边栏的导入/导出按钮触发）
+// ---------------------------------------------------------------------------
+
+// exportOpenAPI 把项目导出为 OpenAPI 3.0 文件。
+func (s *projectSession) exportOpenAPI() {
+	defer s.app.invalidate() // 对话框/提示后重绘，让 toast 显示
+	doc := openapi.Export(s.project)
+	data, err := doc.Marshal()
+	if err != nil {
+		s.app.toaster.Show(i18n.T("toast.exportFailed"), err.Error(), ui.ToastError)
 		return
 	}
-	e := s.flat[i]
-	c := s.tree.GetC()
-	theme := c.Theme()
-
-	// 用一个占满整行的 Row 包住内容，并挂上右键菜单。
-	// 用树行自身的 ID（s.tree.RowID(i)）作为 Hit 标识：既能让右键菜单有身份，
-	// 又不会抢走树行的点击（同一 ID，树的 Chosen 仍能命中）。
-	row := ui.Row(c).Grow(1).Gap(8).Items(ui.Center).Hit(s.tree.RowID(i), e.name).Children(func() {
-		switch e.kind {
-		case nodeFolder:
-			ui.Icon(c, iconFolder).Color(theme.MutedForeground)
-			ui.Text(c, e.name).Weight(gfx.WeightMedium)
-		case nodeInterface:
-			// 无用例的接口没有展开箭头，内容会比有用例的偏左
-			// 这里补一个空白占位，让方法徽标与有用例的接口对齐。
-			if len(e.iface.Cases) == 0 {
-				ui.Icon(c, iconMore).Color(theme.Muted)
-			}
-			methodBadge(c, e.method)
-			ui.Text(c, e.name)
-		case nodeCase:
-			ui.Icon(c, iconBookmark).Color(theme.MutedForeground).MarginLeft(10)
-			ui.Text(c, e.name).Muted()
-		}
+	path, err := vivaapp.SaveFile(vivaapp.SaveFileOptions{
+		Title:            i18n.T("workspace.exportOpenAPI"),
+		SuggestedName:    s.project.Name + ".openapi.json",
+		DefaultExtension: "json",
+		Filters:          []vivaapp.FileFilter{{Name: i18n.T("workspace.openAPIJSON"), Pattern: "*.json"}},
 	})
-
-	// 右键菜单。
-	ui.ContextMenu(c, row, func(menu *ui.MenuItems) {
-		switch e.kind {
-		case nodeFolder:
-			if menu.Item(i18n.T("sidebar.newInterface")).Clicked() {
-				s.createNewInterfaceDraft(e.id)
-			}
-			if menu.Item(i18n.T("sidebar.newFolder")).Clicked() {
-				s.newFolderName = ""
-				s.newFolderParent = e.id
-				s.newFolderOpen = true
-			}
-			if menu.Item(i18n.T("sidebar.deleteFolder")).Clicked() {
-				s.deleteFolder(e.folder)
-			}
-		case nodeInterface:
-			if menu.Item(i18n.T("sidebar.deleteInterface")).Clicked() {
-				s.deleteInterface(e.iface)
-			}
-			if menu.Item(i18n.T("sidebar.saveAsCase")).Clicked() {
-				s.saveCaseName = ""
-				s.saveCaseTarget = e.iface
-				s.saveCaseOpen = true
-			}
-		case nodeCase:
-			if menu.Item(i18n.T("sidebar.deleteCase")).Clicked() {
-				s.deleteCase(e.iface, e.case_)
-			}
-		}
-	})
+	if err != nil {
+		s.app.toaster.Show(i18n.T("toast.exportCancelled"), err.Error(), ui.ToastInfo)
+		return
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		s.app.toaster.Show(i18n.T("toast.exportFailed"), err.Error(), ui.ToastError)
+		return
+	}
+	s.app.toaster.Show(i18n.T("toast.exportSuccess"), path, ui.ToastSuccess)
 }
 
-// selectedFolderID 返回当前选中节点所属的文件夹 ID（无则返回空 = 根目录）。
-func (s *projectSession) selectedFolderID() string {
-	// 若选中的是文件夹，就建在它下面；否则回根目录。
-	for _, e := range s.flat {
-		if e.id == s.selectedID && e.kind == nodeFolder {
-			return e.id
+// importOpenAPI 从文件导入 OpenAPI 3.0 到项目。
+func (s *projectSession) importOpenAPI() {
+	defer s.app.invalidate() // 导入后重绘，刷新目录树并显示 toast
+	paths, err := vivaapp.OpenFiles(vivaapp.OpenFileOptions{
+		Title:         i18n.T("workspace.importOpenAPI"),
+		AllowMultiple: false,
+		Filters:       []vivaapp.FileFilter{{Name: i18n.T("workspace.openAPIJSON"), Pattern: "*.json"}},
+	})
+	if err != nil || len(paths) == 0 {
+		return
+	}
+	data, err := os.ReadFile(paths[0])
+	if err != nil {
+		s.app.toaster.Show(i18n.T("toast.importFailed"), err.Error(), ui.ToastError)
+		return
+	}
+	doc, err := openapi.Parse(data)
+	if err != nil {
+		s.app.toaster.Show(i18n.T("toast.importFailed"), err.Error(), ui.ToastError)
+		return
+	}
+	openapi.Import(s.project, doc, doc.Info.Title)
+	s.markTreeDirty()
+	s.persist()
+	s.app.toaster.Show(i18n.T("toast.importSuccess"), doc.Info.Title, ui.ToastSuccess)
+}
+
+// ---------------------------------------------------------------------------
+// 弹窗（新建文件夹 / 保存新接口 / 保存为用例）
+// ---------------------------------------------------------------------------
+
+// dialogs 渲染当前项目会话的所有弹窗与抽屉。
+func (s *projectSession) dialogs(c ui.C) {
+	s.newFolderModal(c)
+	s.saveDialog(c)
+	s.saveCaseModal(c)
+	s.envDrawer(c)
+}
+
+func (s *projectSession) newFolderModal(c ui.C) {
+	ui.Modal(c, &s.newFolderOpen, i18n.T("dialog.newFolder"),
+		func() {
+			ui.TextField(c, &s.newFolderName, i18n.T("dialog.folderName"), i18n.T("dialog.folderNamePlaceholder")).FillWidth()
+		},
+		func() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
+				s.newFolderOpen = false
+			}
+			if ui.Button(c, i18n.T("common.create")).Clicked() {
+				if strings.TrimSpace(s.newFolderName) == "" {
+					return
+				}
+				f := &model.Folder{ID: model.NewID(), Name: s.newFolderName}
+				if s.newFolderParent == "" {
+					s.project.Folders = append(s.project.Folders, f)
+				} else if parent := s.project.FindFolder(s.newFolderParent); parent != nil {
+					parent.Folders = append(parent.Folders, f)
+					s.expanded[s.newFolderParent] = true
+				}
+				s.newFolderOpen = false
+				s.markTreeDirty()
+				s.persist()
+			}
+		},
+	)
+}
+
+func (s *projectSession) saveDialog(c ui.C) {
+	ui.Modal(c, &s.saveDialogOpen, i18n.T("dialog.saveInterface"),
+		func() {
+			ui.Column(c).Gap(12).Children(func() {
+				ui.TextField(c, &s.saveName, i18n.T("dialog.interfaceName"), i18n.T("dialog.interfaceNamePlaceholder")).FillWidth()
+				s.folderPicker(c, &s.saveParent)
+			})
+		},
+		func() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
+				s.saveDialogOpen = false
+			}
+			if ui.Button(c, i18n.T("common.save")).Clicked() {
+				s.commitSaveDialog()
+			}
+		},
+	)
+}
+
+// commitSaveDialog 把新接口草稿放入选中的文件夹并持久化。
+func (s *projectSession) commitSaveDialog() {
+	tab := s.currentTab()
+	if tab == nil || !tab.isNew || tab.iface == nil {
+		s.saveDialogOpen = false
+		return
+	}
+	if strings.TrimSpace(s.saveName) == "" {
+		return
+	}
+	target := s.project.TargetByPath(s.saveParent)
+	tab.iface.Name = s.saveName
+	if target.Folder == nil {
+		s.project.Interfaces = append(s.project.Interfaces, tab.iface)
+	} else {
+		target.Folder.Interfaces = append(target.Folder.Interfaces, tab.iface)
+		s.expanded[target.Folder.ID] = true
+	}
+	tab.isNew = false
+	tab.name = s.saveName
+	s.selectedID = tab.iface.ID
+	s.saveDialogOpen = false
+	s.markTreeDirty()
+	s.persist()
+}
+
+// folderPicker 渲染一个「目标文件夹」下拉框。
+func (s *projectSession) folderPicker(c ui.C, selected *string) {
+	targets := s.project.FolderTargets()
+	paths := make([]string, len(targets))
+	for i, t := range targets {
+		paths[i] = t.Path
+	}
+	// 保证当前值在选项内，否则 Select 会显示为空。
+	found := false
+	for _, p := range paths {
+		if p == *selected {
+			found = true
+			break
 		}
 	}
-	return ""
+	if !found {
+		*selected = paths[0]
+	}
+	ui.Select(c, selected, paths, identityLabel).FillWidth().Label(i18n.T("dialog.targetFolder"))
+}
+
+func (s *projectSession) saveCaseModal(c ui.C) {
+	ui.Modal(c, &s.saveCaseOpen, i18n.T("dialog.saveCase"),
+		func() {
+			ui.TextField(c, &s.saveCaseName, i18n.T("dialog.caseName"), i18n.T("dialog.caseNamePlaceholder")).FillWidth()
+		},
+		func() {
+			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
+				s.saveCaseOpen = false
+			}
+			if ui.Button(c, i18n.T("common.create")).Clicked() {
+				s.commitSaveCase()
+			}
+		},
+	)
+}
+
+// commitSaveCase 把当前接口保存为一个用例。
+func (s *projectSession) commitSaveCase() {
+	iface := s.saveCaseTarget
+	if iface == nil {
+		s.saveCaseOpen = false
+		return
+	}
+	if strings.TrimSpace(s.saveCaseName) == "" {
+		return
+	}
+	cs := &model.Case{
+		ID:      model.NewID(),
+		Name:    s.saveCaseName,
+		Method:  iface.Method,
+		Path:    iface.Path,
+		Params:  cloneKVs(iface.Params),
+		Headers: cloneKVs(iface.Headers),
+		Cookies: cloneKVs(iface.Cookies),
+		Body:    iface.Body,
+		Auth:    iface.Auth,
+	}
+	iface.Cases = append(iface.Cases, cs)
+	s.expanded[iface.ID] = true
+	s.saveCaseOpen = false
+	s.markTreeDirty()
+	s.persist()
+	s.app.toaster.Show(i18n.T("toast.caseSaved"), cs.Name, ui.ToastSuccess)
 }
