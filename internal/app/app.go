@@ -58,10 +58,19 @@ type appModel struct {
 	newDesc        string
 
 	// 全局设置弹窗与界面语言偏好。langPref 为 "" 表示跟随系统。
-	settingsOpen bool
-	settingsLang string
-	langPref     string
-	langMenuOpen bool // 右上角地球图标的语言快捷菜单
+	settingsOpen      bool
+	settingsLang      string
+	langPref          string
+	langMenuOpen      bool // 右上角地球图标的语言快捷菜单
+	settingsAccordion *ui.AccordionState
+
+	// 设置里的项目管理弹窗。
+	editProjectOpen    bool
+	editProjectOldName string // 原项目名（改名时定位旧目录）
+	editName           string
+	editDesc           string
+	deleteProjectOpen  bool
+	deleteProjectName  string
 
 	toaster ui.Toaster // 全局轻提示
 
@@ -74,7 +83,13 @@ type appModel struct {
 
 // newAppModel 创建应用状态，并加载磁盘上已有的项目列表。
 func newAppModel() *appModel {
-	m := &appModel{active: -1, langPref: storage.LoadPreferences().Language}
+	accordion := ui.NewAccordionState(3)
+	accordion.Open[0] = true // 默认展开「语言设置」
+	m := &appModel{
+		active:            -1,
+		langPref:          storage.LoadPreferences().Language,
+		settingsAccordion: accordion,
+	}
 	m.reloadProjects()
 	return m
 }

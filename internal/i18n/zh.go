@@ -22,6 +22,7 @@ func init() {
 		"common.search":       "搜索",
 		"common.filter":       "过滤",
 		"common.rename":       "重命名",
+		"common.import.tip":   "创建后可导入openAPI",
 
 		// —— 主页 ——
 		"home.title":           "我的项目",
@@ -57,9 +58,18 @@ func init() {
 		"toast.bodyCopied":            "响应体已复制到剪贴板",
 		"toast.downloadFailed":        "下载失败",
 		"toast.downloaded":            "已下载",
+		"toast.openDirFailed":         "打开目录失败",
+		"toast.deleteProjectFailed":   "删除项目失败",
+		"toast.projectDeleted":        "项目已删除",
 
 		// —— 设置 ——
 		"settings.title":           "设置",
+		"settings.projects":        "项目管理",
+		"settings.storage":         "保存目录",
+		"settings.storageHint":     "项目信息保存在用户/文档/gorester/下",
+		"settings.openDataDir":     "打开目录",
+		"settings.noProjects":      "暂无项目",
+		"settings.editProject":     "编辑",
 		"settings.language":        "界面语言 Interface Language",
 		"settings.languageHint":    "选择应用界面使用的语言。 Choose Language",
 		"settings.lang.auto":       "跟随系统",
@@ -152,6 +162,9 @@ func init() {
 		"response.saveDialog":      "下载响应",
 
 		// —— 弹窗与抽屉 ——
+		"dialog.editProject":                "编辑项目",
+		"dialog.confirmDeleteProject":       "删除项目",
+		"dialog.confirmDeleteProjectDesc":   "确定删除项目「%s」及其所有数据吗？此操作不可撤销。",
 		"dialog.confirmDelete":              "确认删除",
 		"dialog.confirmDeleteDesc":          "确定删除「%s」吗？此操作不可撤销。",
 		"dialog.confirmDeleteFolder":        "删除文件夹",

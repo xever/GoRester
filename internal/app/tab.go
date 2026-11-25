@@ -59,7 +59,8 @@ func (s *projectSession) openCaseTab(iface *model.Interface, cs *model.Case) {
 	if iface != nil {
 		parentID = iface.ID
 	}
-	s.workTabs = append(s.workTabs, &workTab{kind: tabCase, id: cs.ID, name: cs.Name, parentID: parentID, case_: cs})
+	var tabNmae = iface.Name + "(" + cs.Name + ")"
+	s.workTabs = append(s.workTabs, &workTab{kind: tabCase, id: cs.ID, name: tabNmae, parentID: parentID, case_: cs})
 	s.activeWork = len(s.workTabs) - 1
 	s.autoSelectReqTab(cs.Params, cs.Headers, cs.Cookies, cs.Body, cs.Auth)
 }

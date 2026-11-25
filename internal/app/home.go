@@ -72,9 +72,12 @@ func (m *appModel) homePage(c ui.C) {
 			ui.Column(c).Gap(12).Children(func() {
 				ui.TextField(c, &m.newName, i18n.T("home.name"), i18n.T("home.namePlaceholder")).FillWidth()
 				ui.TextArea(c, &m.newDesc, i18n.T("home.desc"), i18n.T("home.descPlaceholder")).FillWidth().AutoGrow(5)
+
 			})
 		},
 		func() {
+			ui.Text(c, i18n.T("common.import.tip")).Muted()
+			ui.Spacer(c)
 			if ui.Button(c, i18n.T("common.cancel")).Outline().Clicked() {
 				m.newProjectOpen = false
 			}

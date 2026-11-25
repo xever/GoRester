@@ -22,6 +22,7 @@ func init() {
 		"common.search":       "Search",
 		"common.filter":       "Filter",
 		"common.rename":       "Rename",
+		"common.import.tip":   "Import openAPI after creation.",
 
 		// —— Home ——
 		"home.title":           "My Projects",
@@ -57,9 +58,18 @@ func init() {
 		"toast.bodyCopied":            "Response body copied to clipboard",
 		"toast.downloadFailed":        "Download failed",
 		"toast.downloaded":            "Downloaded",
+		"toast.openDirFailed":         "Failed to open folder",
+		"toast.deleteProjectFailed":   "Failed to delete project",
+		"toast.projectDeleted":        "Project deleted",
 
 		// —— Settings ——
 		"settings.title":           "Settings",
+		"settings.projects":        "Projects",
+		"settings.storage":         "Storage Directory",
+		"settings.storageHint":     "Project data is saved under ~/Documents/gorester/",
+		"settings.openDataDir":     "Open folder",
+		"settings.noProjects":      "No projects yet",
+		"settings.editProject":     "Edit",
 		"settings.language":        "Interface Language 语言",
 		"settings.languageHint":    "Choose the language used by the app interface. 选语言",
 		"settings.lang.auto":       "Follow system",
@@ -79,7 +89,7 @@ func init() {
 		"sidebar.newFolder":         "New Folder",
 		"sidebar.newInterface":      "New Request",
 		"sidebar.empty":             "No requests yet",
-		"sidebar.emptyHint":         "Click \"New\" above to create a request or folder",
+		"sidebar.emptyHint":         "Click \"New\" above",
 		"sidebar.tree":              "Request tree",
 		"sidebar.deleteFolder":      "Delete Folder",
 		"sidebar.deleteInterface":   "Delete Request",
@@ -152,6 +162,9 @@ func init() {
 		"response.saveDialog":      "Download Response",
 
 		// —— Dialogs and drawer ——
+		"dialog.editProject":                "Edit Project",
+		"dialog.confirmDeleteProject":       "Delete Project?",
+		"dialog.confirmDeleteProjectDesc":   "Delete \"%s\" and all its data? This cannot be undone.",
 		"dialog.confirmDelete":              "Delete?",
 		"dialog.confirmDeleteDesc":          "Delete \"%s\"? This cannot be undone.",
 		"dialog.confirmDeleteFolder":        "Delete Folder?",

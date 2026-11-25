@@ -62,6 +62,9 @@ func baseDir() (string, error) {
 	return dir, nil
 }
 
+// DataDir 返回数据根目录（不存在则创建），供设置页展示并打开。
+func DataDir() (string, error) { return baseDir() }
+
 // projectDir 返回某个项目的文件夹路径。
 func projectDir(name string) (string, error) {
 	base, err := baseDir()
@@ -182,6 +185,35 @@ func SaveProject(p *model.Project) error {
 	pf := filepath.Join(dir, dataFileName)
 	if err := os.WriteFile(pf, data, 0o644); err != nil {
 		return fmt.Errorf(i18n.T("error.writeProject"), err)
+	}
+	return nil
+}
+
+// UpdateProject 用 p 覆盖已有项目（oldName 为原来的项目名）。
+// 改名时先写新目录再删旧目录；若新旧目录相同（例如只改了会被净化的字符）则不删。
+func UpdateProject(oldName string, p *model.Project) error {
+	if p == nil {
+		return errors.New(i18n.T("error.projectEmpty"))
+	}
+	newDir, err := projectDir(p.Name)
+	if err != nil {
+		return err
+	}
+	if err := SaveProject(p); err != nil {
+		return err
+	}
+	if oldName == "" || oldName == p.Name {
+		return nil
+	}
+	oldDir, err := projectDir(oldName)
+	if err != nil {
+		return err
+	}
+	if oldDir == newDir {
+		return nil
+	}
+	if err := os.RemoveAll(oldDir); err != nil {
+		return fmt.Errorf(i18n.T("error.deleteProject"), err)
 	}
 	return nil
 }

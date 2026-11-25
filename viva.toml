@@ -5,7 +5,7 @@
 name = "GoRester"
 # 反向域名风格的包标识。
 id = "dev.xever.gorester"
-version = "0.3.0"
+version = "0.1.0"
 # 生成的可执行文件名。
 executable = "gorester"
 # 主包路径。
